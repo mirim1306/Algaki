@@ -70,8 +70,19 @@ class Renderer:
             color = (r, g, b)
             pygame.draw.circle(surf, color, (int(p["x"]), int(p["y"])), p["r"])
 
+
+    def _refresh_constants(self):
+        """매 프레임마다 최신 레이아웃 상수를 가져옴."""
+        import core.constants as _c
+        self._BL = _c.BOARD_LEFT
+        self._BT = _c.BOARD_TOP
+        self._BR = _c.BOARD_RIGHT
+        self._BB = _c.BOARD_BOTTOM
+        self._MX = _c.MID_X
+
     # ── 메인 렌더 ────────────────────────────────────────────────
     def render(self, gs: GameState):
+        self._refresh_constants()
         self.update_particles()
         self.screen.fill(C_BG)
         self._draw_board(gs)
@@ -87,14 +98,14 @@ class Renderer:
 
     # ── 보드 ────────────────────────────────────────────────────
     def _draw_board(self, gs: GameState):
-        board_rect = pygame.Rect(BOARD_LEFT, BOARD_TOP,
-                                 BOARD_RIGHT - BOARD_LEFT,
-                                 BOARD_BOTTOM - BOARD_TOP)
+        board_rect = pygame.Rect(self._BL, self._BT,
+                                 self._BR - self._BL,
+                                 self._BB - self._BT)
         pygame.draw.rect(self.screen, C_BOARD, board_rect, border_radius=8)
         pygame.draw.rect(self.screen, C_LINE, board_rect, 2, border_radius=8)
         # 중앙선
         pygame.draw.line(self.screen, C_LINE,
-                         (MID_X, BOARD_TOP), (MID_X, BOARD_BOTTOM), 1)
+                         (self._MX, self._BT), (self._MX, self._BB), 1)
 
     # ── 지뢰 ────────────────────────────────────────────────────
     def _draw_mines(self, gs: GameState):
@@ -252,7 +263,7 @@ class Renderer:
         turn_name = "P1 (파랑)" if gs.turn == 0 else "P2 (빨강)"
         turn_col  = C_P1 if gs.turn == 0 else C_P2
         txt = self.font_lg.render(f"{turn_name} 차례", True, turn_col)
-        self.screen.blit(txt, txt.get_rect(center=(self.w // 2, BOARD_TOP - 60)))
+        self.screen.blit(txt, txt.get_rect(center=(self.w // 2, self._BT - 60)))
 
         # 현재 행동
         if gs.phase == STATE_ABILITY and gs.ability_egg:
@@ -264,18 +275,18 @@ class Renderer:
             mode_txt = self.font_md.render("모드: 발사", True, C_GRAY)
         else:
             mode_txt = self.font_md.render("모드: 능력", True, (200, 160, 255))
-        self.screen.blit(mode_txt, mode_txt.get_rect(center=(self.w // 2, BOARD_TOP - 30)))
+        self.screen.blit(mode_txt, mode_txt.get_rect(center=(self.w // 2, self._BT - 30)))
 
     def _draw_panel_left(self, gs: GameState):
         """P1 정보 패널."""
-        self._draw_egg_list(gs, 0, 10, BOARD_TOP)
+        self._draw_egg_list(gs, 0, 10, self._BT)
 
     def _draw_panel_right(self, gs: GameState):
         """P2 정보 패널."""
-        self._draw_egg_list(gs, 1, BOARD_RIGHT + 10, BOARD_TOP)
+        self._draw_egg_list(gs, 1, self._BR + 10, self._BT)
 
     def _draw_egg_list(self, gs: GameState, owner: int, px: int, py: int):
-        panel_w = BOARD_LEFT - 12 if owner == 0 else self.w - BOARD_RIGHT - 12
+        panel_w = self._BL - 12 if owner == 0 else self.w - self._BR - 12
         label = "P1" if owner == 0 else "P2"
         col   = C_P1 if owner == 0 else C_P2
 
@@ -306,9 +317,9 @@ class Renderer:
     # ── 로그 ────────────────────────────────────────────────────
     def _draw_log(self, gs: GameState):
         log_x = 10
-        log_y = BOARD_BOTTOM + 8
+        log_y = self._BB + 8
         log_w = self.w - 20
-        log_h = self.h - BOARD_BOTTOM - 8
+        log_h = self.h - self._BB - 8
 
         pygame.draw.rect(self.screen, C_UI_BG,
                          (log_x, log_y, log_w, log_h), border_radius=6)

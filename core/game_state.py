@@ -13,7 +13,11 @@ from core.abilities import (
 )
 from core.constants import *
 
+
 def _build_initial_eggs(p1_types=None, p2_types=None) -> list[Egg]:
+    """update_layout() 이후 호출 → constants 모듈에서 직접 최신 좌표 읽음."""
+    import core.constants as _c
+
     eggs: list[Egg] = []
     types_pool = [
         "normal", "normal", "normal",
@@ -27,24 +31,36 @@ def _build_initial_eggs(p1_types=None, p2_types=None) -> list[Egg]:
         else:
             pool = types_pool[:]
             random.shuffle(pool)
-            chosen = pool[:EGGS_PER_PLAYER]
+            chosen = pool[:_c.EGGS_PER_PLAYER]
             chosen[0] = "normal"
 
         n = len(chosen)
         rows_needed = max(4, (n + 1) // 2)
-        col_xs = [base_x, base_x + (60 if owner == 0 else -60)]
-        rows = [BOARD_TOP + 80 + i * 60 for i in range(rows_needed)]
+
+        # 2열 배치: P1 오른쪽 열 추가, P2 왼쪽 열 추가
+        offset = 62
+        col_xs = [base_x, base_x + (offset if owner == 0 else -offset)]
+
+        # 보드 높이에 맞게 행 간격 조절
+        board_h = _c.BOARD_BOTTOM - _c.BOARD_TOP
+        row_gap = min(62, max(50, (board_h - 100) // max(rows_needed, 1)))
+        rows = [_c.BOARD_TOP + 60 + i * row_gap for i in range(rows_needed)]
+
         positions = [(cx, ry) for cx in col_xs for ry in rows]
         random.shuffle(positions)
 
+        r = _c.EGG_RADIUS
         for i, t in enumerate(chosen):
             px, py = positions[i % len(positions)]
-            px += random.uniform(-6, 6)
-            py += random.uniform(-6, 6)
+            px += random.uniform(-4, 4)
+            py += random.uniform(-4, 4)
+            # 보드 안으로 강제 clamp
+            px = max(_c.BOARD_LEFT  + r + 4, min(_c.BOARD_RIGHT  - r - 4, px))
+            py = max(_c.BOARD_TOP   + r + 4, min(_c.BOARD_BOTTOM - r - 4, py))
             eggs.append(Egg(px, py, owner, t))
 
-    place(0, BOARD_LEFT  + 100, p1_types)
-    place(1, BOARD_RIGHT - 100, p2_types)
+    place(0, _c.BOARD_LEFT  + 110, p1_types)
+    place(1, _c.BOARD_RIGHT - 110, p2_types)
     return eggs
 
 
@@ -118,7 +134,6 @@ class GameState:
             destroyed = explode_mine(mine, self.eggs)
             self.log(f"💥 지뢰 폭발! 알 {len(destroyed)}개 파괴")
 
-        # 보드 밖 탈락 알 로그
         for egg in self.eggs:
             if not egg.active and egg.is_moving():
                 egg.vx = egg.vy = 0.0
@@ -171,10 +186,10 @@ class GameState:
         if egg.type == "normal":
             return False, "일반알은 능력이 없습니다."
 
-        self.ability_egg    = egg
-        self.ability_step   = 0
+        self.ability_egg     = egg
+        self.ability_step    = 0
         self.ability_targets = []
-        self.phase          = STATE_ABILITY
+        self.phase           = STATE_ABILITY
         return True, self._ability_prompt(egg)
 
     def _ability_prompt(self, egg: Egg) -> str:
