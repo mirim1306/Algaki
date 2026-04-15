@@ -110,7 +110,8 @@ class MenuScreen:
             alpha = int(120 + 100 * math.sin(self.tick * 0.02 + ph))
             c = int(br * alpha)
             c = max(0, min(255, c))
-            pygame.draw.circle(s, (c, c, c + 30), (int(sx), int(sy)), 1)
+            cb = min(255, c + 30)
+            pygame.draw.circle(s, (c, c, cb), (int(sx), int(sy)), 1)
 
         # ── 중앙 글로우 원 ──
         cx = self.w // 2
