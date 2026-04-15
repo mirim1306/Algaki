@@ -6,12 +6,16 @@ from core.egg import Egg, Barrier, Mine
 
 
 def resolve_egg_collision(a: Egg, b: Egg):
-    """두 알 탄성 충돌 — 정면/비껴맞기 모두 확실히 밀림."""
+    """
+    알까기 스타일 충돌:
+      - 발사된 알(움직이는 쪽)의 법선 방향 속도를 맞은 알에 그대로 전달
+      - 발사 알은 법선 방향 속도만 잃고 접선 방향은 유지 (당구공 원리)
+      - 양쪽 모두 움직일 때는 등질량 탄성 충돌
+    """
     dx = b.x - a.x
     dy = b.y - a.y
     dist = math.hypot(dx, dy)
     if dist < 0.001:
-        # 완전히 겹쳤을 때 랜덤 방향으로 밀어냄
         import random
         angle = random.uniform(0, math.pi * 2)
         dx, dy, dist = math.cos(angle), math.sin(angle), 1.0
@@ -19,43 +23,60 @@ def resolve_egg_collision(a: Egg, b: Egg):
     nx, ny = dx / dist, dy / dist
     overlap = (a.r + b.r) - dist
 
-    # 겹침 완전 분리 (비율 50:50)
-    sep = overlap * 0.51
-    a.x -= nx * sep
-    a.y -= ny * sep
-    b.x += nx * sep
-    b.y += ny * sep
+    # 겹침 분리: 움직이는 쪽이 주로 밀려남
+    a_moving = math.hypot(a.vx, a.vy) > MIN_SPEED
+    b_moving = math.hypot(b.vx, b.vy) > MIN_SPEED
 
-    # 법선 방향 상대 속도 (양수 = 멀어지는 중 → 충돌 처리 불필요)
-    dv_n = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny
-    if dv_n >= 0:
-        return
+    if a_moving and not b_moving:
+        # a가 발사, b가 정지 → a가 100% 밀려서 분리
+        a.x -= nx * (overlap + 0.5)
+        a.y -= ny * (overlap + 0.5)
+    elif b_moving and not a_moving:
+        b.x += nx * (overlap + 0.5)
+        b.y += ny * (overlap + 0.5)
+    else:
+        sep = overlap * 0.51
+        a.x -= nx * sep
+        a.y -= ny * sep
+        b.x += nx * sep
+        b.y += ny * sep
 
-    # 반발계수: 얼음 상태면 더 탄력적
+    # 반발계수
     e = RESTITUTION
     if a.icy or b.icy:
         e = min(e * ICE_SLIP_MULT, 1.6)
 
-    # 등질량 충돌 impulse
-    impulse = -(1.0 + e) * dv_n * 0.5
+    # ── 핵심: 발사 위력 전달 ──────────────────────────────────
+    if a_moving and not b_moving:
+        # a(발사알) → b(정지알) 법선 방향 속도 완전 전달
+        # a의 법선 방향 속도 성분
+        a_vn = a.vx * nx + a.vy * ny   # a가 b 방향으로 가는 속도
+        if a_vn > 0:                   # b를 향해 달려오는 경우만
+            # b는 a의 법선 방향 속도 * 반발계수 획득
+            b.vx += nx * a_vn * e
+            b.vy += ny * a_vn * e
+            # a는 법선 방향 속도를 잃음 (접선은 유지 — 당구공)
+            a.vx -= nx * a_vn
+            a.vy -= ny * a_vn
 
-    a.vx -= impulse * nx
-    a.vy -= impulse * ny
-    b.vx += impulse * nx
-    b.vy += impulse * ny
+    elif b_moving and not a_moving:
+        # b(발사알) → a(정지알)
+        b_vn = -(b.vx * nx + b.vy * ny)   # b가 a 방향으로 가는 속도
+        if b_vn > 0:
+            a.vx -= nx * b_vn * e
+            a.vy -= ny * b_vn * e
+            b.vx += nx * b_vn
+            b.vy += ny * b_vn
 
-    # 정지 알이 거의 안 밀릴 때 최소 속도 강제 부여
-    b_spd = math.hypot(b.vx, b.vy)
-    if b_spd < 0.8 and abs(dv_n) > 0.5:
-        scale = max(abs(dv_n) * 0.5, 1.2) / max(b_spd, 0.001)
-        b.vx *= scale
-        b.vy *= scale
-
-    a_spd = math.hypot(a.vx, a.vy)
-    if a_spd < 0.8 and abs(dv_n) > 0.5:
-        scale = max(abs(dv_n) * 0.3, 0.8) / max(a_spd, 0.001)
-        a.vx *= scale
-        a.vy *= scale
+    else:
+        # 양쪽 모두 움직임 → 등질량 탄성 충돌
+        dv_n = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny
+        if dv_n < 0:
+            impulse = -(1.0 + e) * dv_n * 0.5
+            a.vx -= impulse * nx
+            a.vy -= impulse * ny
+            b.vx += impulse * nx
+            b.vy += impulse * ny
 
 
 def resolve_barrier_collision(egg: Egg, barrier: Barrier):
