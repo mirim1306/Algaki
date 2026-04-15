@@ -1,34 +1,39 @@
 # core/egg.py
 from __future__ import annotations
-import math, random
+import math
 from core.constants import *
 
-class Egg:
-    """알까기 게임의 알 하나를 나타냄."""
 
+class Egg:
     _id_counter = 0
 
     def __init__(self, x: float, y: float, owner: int, egg_type: str = "normal"):
         Egg._id_counter += 1
-        self.id: int        = Egg._id_counter
-        self.x: float       = x
-        self.y: float       = y
-        self.vx: float      = 0.0
-        self.vy: float      = 0.0
-        self.owner: int     = owner
-        self.type: str      = egg_type
-        self.r: int         = EGG_RADIUS
-        self.active: bool   = True
+        self.id:    int   = Egg._id_counter
+        self.x:    float  = x
+        self.y:    float  = y
+        self.vx:   float  = 0.0
+        self.vy:   float  = 0.0
+        self.owner: int   = owner
+        self.type:  str   = egg_type
+        self.r:     int   = EGG_RADIUS
+        self.active: bool = True
 
-        self.sealed: bool       = False
-        self.icy: bool          = False
-        self.invisible: bool    = False
-        self.is_clone: bool     = False
-        self.magnet_pair: Egg | None = None
+        # 상태 플래그
+        self.sealed:    bool = False
+        self.seal_turns: int = 0        # 봉인 남은 턴 수
+        self.icy:       bool = False
+        self.invisible: bool = False
+        self.is_clone:  bool = False
+        self.magnet_pair: "Egg | None" = None
 
-        self.copied_ability: str | None  = None
-        self.copied_vx: float | None     = None
-        self.copied_vy: float | None     = None
+        # 복사알 저장값
+        self.copied_ability: str | None   = None   # 저장된 능력 타입
+        self.copied_vx:      float | None = None   # 저장된 위력 x
+        self.copied_vy:      float | None = None   # 저장된 위력 y
+
+        # 복사알 상태
+        self.copy_mode: str = "none"  # "none" | "ability" | "power"
 
     @property
     def speed(self) -> float:
@@ -51,33 +56,21 @@ class Egg:
         return self.dist_to(other) < self.r + other.r
 
     def bounce_walls(self) -> bool:
-        """벽 처리. 보드 밖으로 완전히 나가면 active=False, True 반환."""
         out_left   = self.x + self.r < BOARD_LEFT
         out_right  = self.x - self.r > BOARD_RIGHT
         out_top    = self.y + self.r < BOARD_TOP
         out_bottom = self.y - self.r > BOARD_BOTTOM
-
         if out_left or out_right or out_top or out_bottom:
             self.active = False
-            return True   # 탈락
+            return True
         return False
 
     @property
     def base_color(self):
         return EGG_COLORS.get(self.type, (180, 180, 180))
 
-    @property
-    def draw_color(self):
-        if self.invisible:
-            r, g, b = self.base_color
-            return (r, g, b, 60)
-        if self.icy:
-            r, g, b = self.base_color
-            return (min(r, 120), min(g + 40, 255), min(b + 60, 255))
-        return self.base_color
-
     def __repr__(self):
-        return f"Egg(id={self.id}, type={self.type}, owner={self.owner}, pos=({self.x:.0f},{self.y:.0f}))"
+        return f"Egg(id={self.id}, type={self.type}, owner={self.owner})"
 
 
 class Barrier:
@@ -101,8 +94,8 @@ class Mine:
         self.x = x
         self.y = y
         self.r = EGG_RADIUS // 2
-        self.owner   = owner
-        self.active  = True
+        self.owner     = owner
+        self.active    = True
         self.triggered = False
 
     def in_blast(self, egg: Egg) -> bool:

@@ -28,6 +28,7 @@ class Renderer:
         self.screen = screen
         self.w = screen.get_width()
         self.h = screen.get_height()
+        self._tick = 0
         self._load_fonts()
         self.particles: list[dict] = []
 
@@ -84,6 +85,7 @@ class Renderer:
 
     # ── 메인 렌더 ─────────────────────────────────────────────────
     def render(self, gs: GameState):
+        self._tick += 1
         self._snap()
         self._update_particles()
         self.screen.fill(C_BG)
@@ -180,44 +182,78 @@ class Renderer:
                 self._draw_single_egg(egg, gs)
 
     def _draw_single_egg(self, egg: Egg, gs: GameState):
-        cx, cy = int(egg.x), int(egg.y)
-        selected = (egg is gs.selected_egg or egg is gs.ability_egg)
-        col = egg.base_color
+        cx, cy    = int(egg.x), int(egg.y)
+        selected  = (egg is gs.selected_egg or egg is gs.ability_egg)
+        col       = egg.base_color
         owner_col = C_P1 if egg.owner == 0 else C_P2
 
+        # ── 투명 알 ──
         if egg.invisible:
-            surf = pygame.Surface((egg.r*2+4, egg.r*2+4), pygame.SRCALPHA)
-            pygame.draw.circle(surf, (*col, 70), (egg.r+2, egg.r+2), egg.r)
-            self.screen.blit(surf, (cx-egg.r-2, cy-egg.r-2))
+            is_own = (egg.owner == gs.turn)
+            if is_own:
+                surf = pygame.Surface((egg.r*2+4, egg.r*2+4), pygame.SRCALPHA)
+                pygame.draw.circle(surf, (*col, 80), (egg.r+2, egg.r+2), egg.r)
+                ow_c = C_P1 if egg.owner == 0 else C_P2
+                pygame.draw.circle(surf, (*ow_c, 50), (egg.r+2, egg.r+2), egg.r+2, 2)
+                self.screen.blit(surf, (cx-egg.r-2, cy-egg.r-2))
+                icon = self.font_sm.render("👻", True, (200, 200, 255))
+                self.screen.blit(icon, (cx-7, cy-7))
             return
 
+        # ── 선택 글로우 ──
         if selected:
             pygame.draw.circle(self.screen, _lt(col, 2.0), (cx, cy), egg.r+7)
 
+        # ── 주인 테두리 ──
         pygame.draw.circle(self.screen, owner_col, (cx, cy), egg.r+3)
 
-        draw_col = (95, 100, 115) if egg.sealed else col
+        # ── 봉인 회색 ──
+        draw_col = (85, 88, 105) if egg.sealed else col
         pygame.draw.circle(self.screen, _dk(draw_col, 0.5), (cx, cy), egg.r)
         pygame.draw.circle(self.screen, draw_col, (cx, cy), egg.r-2)
 
+        # ── 얼음 오버레이 ──
         if egg.icy:
             ice = pygame.Surface((egg.r*2, egg.r*2), pygame.SRCALPHA)
             pygame.draw.circle(ice, (100, 220, 255, 80), (egg.r, egg.r), egg.r)
             self.screen.blit(ice, (cx-egg.r, cy-egg.r))
 
+        # ── 복사알 저장 상태 테두리 ──
+        if egg.type == "copy" and egg.copy_mode != "none":
+            pulse = abs(math.sin(self._tick * 0.08)) * 0.6 + 0.4
+            glow  = tuple(int(c * pulse) for c in (255, 220, 60))
+            pygame.draw.circle(self.screen, glow, (cx, cy), egg.r+5, 2)
+
+        # ── 광택 ──
         pygame.draw.circle(self.screen, _lt(col, 1.6),
                            (cx - egg.r//3, cy - egg.r//3), egg.r//3)
 
+        # ── 타깃 표시 ──
         if gs.phase == STATE_ABILITY and egg in gs.ability_targets:
             pygame.draw.circle(self.screen, C_HIGHLIGHT, (cx, cy), egg.r+5, 2)
 
+        # ── 이름 ──
         name = EGG_INFO[egg.type]["name"][:2]
-        txt = self.font_sm.render(name, True, C_WHITE)
+        txt  = self.font_sm.render(name, True, C_WHITE)
         self.screen.blit(txt, txt.get_rect(center=(cx, cy)))
 
+        # ── 상태 아이콘 ──
+        ix, iy = cx + egg.r - 5, cy - egg.r - 2
         if egg.icy:
-            icon = self.font_sm.render("❄", True, (100, 230, 255))
-            self.screen.blit(icon, (cx+egg.r-6, cy-egg.r-2))
+            self.screen.blit(self.font_sm.render("❄", True, (100, 230, 255)), (ix, iy))
+            iy += 14
+        if egg.sealed:
+            self.screen.blit(self.font_sm.render("🔒", True, (230, 180, 60)), (ix-4, iy))
+            iy += 14
+
+        # 복사알 저장 레이블 (알 아래)
+        if egg.type == "copy" and egg.copy_mode == "ability" and egg.copied_ability:
+            label = EGG_INFO.get(egg.copied_ability, {}).get("name", "?")[:2]
+            ct = self.font_sm.render(f"[{label}]", True, (255, 220, 60))
+            self.screen.blit(ct, (cx - ct.get_width()//2, cy + egg.r + 2))
+        elif egg.type == "copy" and egg.copy_mode == "power":
+            ct = self.font_sm.render("[위력]", True, (100, 255, 180))
+            self.screen.blit(ct, (cx - ct.get_width()//2, cy + egg.r + 2))
 
     # ── 조준선 ────────────────────────────────────────────────────
     def _draw_aim(self, gs: GameState):
