@@ -4,7 +4,9 @@ import math
 from core.constants import *
 from core.egg import Egg, Barrier, Mine
 
+
 def resolve_egg_collision(a: Egg, b: Egg):
+    """두 알 탄성 충돌 - 충돌 전달력 강화."""
     dx = b.x - a.x
     dy = b.y - a.y
     dist = math.hypot(dx, dy)
@@ -14,24 +16,40 @@ def resolve_egg_collision(a: Egg, b: Egg):
     nx, ny = dx / dist, dy / dist
     overlap = (a.r + b.r) - dist
 
-    a.x -= nx * overlap * 0.5
-    a.y -= ny * overlap * 0.5
-    b.x += nx * overlap * 0.5
-    b.y += ny * overlap * 0.5
+    # 겹침 보정 (더 강하게)
+    a.x -= nx * overlap * 0.52
+    a.y -= ny * overlap * 0.52
+    b.x += nx * overlap * 0.52
+    b.y += ny * overlap * 0.52
 
+    # 법선 방향 상대 속도
     dv_n = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny
     if dv_n > 0:
         return
 
+    # 얼음 슬립
     e = RESTITUTION
     if b.icy:
         e = min(e * ICE_SLIP_MULT, 1.6)
+    if a.icy:
+        e = min(e * ICE_SLIP_MULT, 1.6)
 
+    # 등질량 충돌 — 운동량 완전 전달 (impulse 계수 1.0으로 높임)
     impulse = (1 + e) * dv_n / 2
+
     a.vx -= impulse * nx
     a.vy -= impulse * ny
     b.vx += impulse * nx
     b.vy += impulse * ny
+
+    # 정지 알에 충돌 시 최소 속도 보장 (잘 안 밀리는 문제 해결)
+    b_speed = math.hypot(b.vx, b.vy)
+    a_speed = math.hypot(a.vx, a.vy)
+    hit_speed = abs(dv_n)
+    if b_speed < hit_speed * 0.3 and hit_speed > 0.5:
+        scale = hit_speed * 0.3 / max(b_speed, 0.001)
+        b.vx *= scale
+        b.vy *= scale
 
 
 def resolve_barrier_collision(egg: Egg, barrier: Barrier):
@@ -68,7 +86,6 @@ def apply_magnet(egg: Egg):
 
 
 def step_physics(eggs: list[Egg], barriers: list[Barrier], mines: list[Mine]):
-    """한 프레임 물리. 반환: 폭발할 지뢰 목록"""
     triggered_mines: list[Mine] = []
 
     for egg in eggs:
@@ -78,9 +95,8 @@ def step_physics(eggs: list[Egg], barriers: list[Barrier], mines: list[Mine]):
         egg.x += egg.vx
         egg.y += egg.vy
         egg.apply_friction()
-        egg.bounce_walls()   # 이제 탈락 처리 (반사 없음)
+        egg.bounce_walls()
 
-    # 알 ↔ 알 충돌
     active = [e for e in eggs if e.active]
     for i in range(len(active)):
         for j in range(i + 1, len(active)):
@@ -88,13 +104,11 @@ def step_physics(eggs: list[Egg], barriers: list[Barrier], mines: list[Mine]):
             if a.overlaps(b):
                 resolve_egg_collision(a, b)
 
-    # 알 ↔ 방벽 충돌
     for egg in active:
         for barrier in barriers:
             if barrier.active and barrier.overlaps_egg(egg):
                 resolve_barrier_collision(egg, barrier)
 
-    # 지뢰 발동 체크
     for mine in mines:
         if not mine.active or mine.triggered:
             continue

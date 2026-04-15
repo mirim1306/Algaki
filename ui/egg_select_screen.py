@@ -1,13 +1,16 @@
 # ui/egg_select_screen.py
 """
 알 선택 화면
- - 맵 선택 (3종)
- - 알 개수 선택 (4~10)
- - 어떤 알을 가져갈지 선택 (멀티: P1/P2 직접 / 싱글: P1 직접, P2 AI 자동)
+ - 맵 선택
+ - 알 개수 선택 (MIN_EGGS ~ MAX_EGGS, 기본 EGGS_PER_PLAYER)
+ - 선택한 알 그대로 게임에 사용 (normal 강제 삽입 없음)
 """
 from __future__ import annotations
 import math, random, pygame
-from core.constants import *
+from core.constants import (
+    EGG_INFO, EGG_COLORS, C_P1, C_P2,
+    EGGS_PER_PLAYER, MIN_EGGS, MAX_EGGS,
+)
 
 
 def _mk_font(name, size, bold=False):
@@ -24,9 +27,6 @@ MAPS = [
     ("협곡 맵",  "중앙에 장애물이 있는 보드", (28, 50, 40)),
     ("미러 맵",  "좌우 대칭 특수 구조",       (50, 28, 60)),
 ]
-
-MIN_EGGS = 4
-MAX_EGGS = 10
 
 
 class EggSelectScreen:
@@ -47,10 +47,10 @@ class EggSelectScreen:
         self.mode  = mode
         self.tick  = 0
 
-        self.selected_map: int       = 0
-        self.egg_count: int          = EGGS_PER_PLAYER
-        self.p1_selected: list[str]  = []
-        self.p2_selected: list[str]  = []
+        self.selected_map: int      = 0
+        self.egg_count: int         = EGGS_PER_PLAYER   # 기본 5
+        self.p1_selected: list[str] = []
+        self.p2_selected: list[str] = []
         self.current_player_tab: int = 0
 
         self.hovered_egg: str | None = None
@@ -75,16 +75,12 @@ class EggSelectScreen:
     def _ai_pick_eggs(self):
         pool = SELECTABLE_EGGS[:]
         random.shuffle(pool)
-        chosen = pool[:self.egg_count]
-        if "normal" not in chosen:
-            chosen[0] = "normal"
-        self.p2_selected = chosen[:]
+        self.p2_selected = pool[:self.egg_count]
 
     # ── 레이아웃 ──────────────────────────────────────────────────
     def _build_layout(self):
         cx = self.w // 2
 
-        # 맵 선택 (y=85)
         mw, mh, mg = 200, 80, 16
         total_mw = len(MAPS) * mw + (len(MAPS) - 1) * mg
         self.map_rects: list[pygame.Rect] = [
@@ -92,13 +88,11 @@ class EggSelectScreen:
             for i in range(len(MAPS))
         ]
 
-        # 알 개수 (y=195)
         self.minus_rect = pygame.Rect(cx - 80, 195, 40, 40)
         self.plus_rect  = pygame.Rect(cx + 40, 195, 40, 40)
         self.count_rect = pygame.Rect(cx - 35, 195, 70, 40)
 
-        # 알 선택 섹션
-        section_y = 248   # "◆ 알 선택" 헤더 y
+        section_y = 248
 
         if self.mode == "multi":
             self.tab_rects = [
@@ -108,9 +102,8 @@ class EggSelectScreen:
             palette_y = section_y + 72
         else:
             self.tab_rects = []
-            palette_y = section_y + 48   # 헤더 + 카운터 텍스트 아래
+            palette_y = section_y + 48
 
-        # 팔레트 격자
         egg_cols = 5
         ew, eh, eg = 130, 58, 10
         pw = egg_cols * (ew + eg) - eg
@@ -128,14 +121,12 @@ class EggSelectScreen:
                 ew, eh
             )
 
-        # 버튼
         bw, bh = 150, 46
         self.back_rect  = pygame.Rect(40, self.h - bh - 14, bw, bh)
         self.start_rect = pygame.Rect(self.w - 40 - bw, self.h - bh - 14, bw, bh)
 
-    # ── 이벤트 처리 ───────────────────────────────────────────────
+    # ── 이벤트 ────────────────────────────────────────────────────
     def handle_event(self, event: pygame.event.Event):
-        """반환: None | 'back' | dict"""
         if event.type == pygame.MOUSEMOTION:
             mx, my = event.pos
             self.hovered_egg = None
@@ -169,13 +160,11 @@ class EggSelectScreen:
                 self.egg_count = min(MAX_EGGS, self.egg_count + 1)
                 self._on_count_change()
 
-            # 탭 (멀티)
             if self.mode == "multi":
                 for i, r in enumerate(self.tab_rects):
                     if r.collidepoint(pos):
                         self.current_player_tab = i
 
-            # 알 토글 — 싱글/멀티 모두 클릭 처리
             for key, r in self.egg_rects.items():
                 if r.collidepoint(pos):
                     self._toggle_egg(key)
@@ -193,7 +182,6 @@ class EggSelectScreen:
                 self.p2_selected.pop()
 
     def _toggle_egg(self, key: str):
-        # 멀티: 현재 탭 기준 / 싱글: 항상 P1
         lst = (self.p1_selected if self.current_player_tab == 0
                else self.p2_selected) if self.mode == "multi" else self.p1_selected
         if key in lst:
@@ -202,32 +190,25 @@ class EggSelectScreen:
             lst.append(key)
 
     def _build_config(self) -> dict:
+        """선택한 알 그대로 반환. 부족분은 랜덤으로 채움. normal 강제 없음."""
         pool = SELECTABLE_EGGS[:]
         random.shuffle(pool)
 
-        if self.mode == "multi":
-            p1 = self.p1_selected[:]
-            p2 = self.p2_selected[:]
-            for p in (p1, p2):
-                extras = [e for e in pool if e not in p]
-                random.shuffle(extras)
-                p.extend(extras[:self.egg_count - len(p)])
-                if "normal" not in p:
-                    p[0] = "normal"
-        else:
-            # P1: 직접 선택 + 부족분 채움
-            p1 = self.p1_selected[:]
-            extras = [e for e in pool if e not in p1]
+        def fill(lst: list[str]) -> list[str]:
+            result = lst[:]
+            extras = [e for e in pool if e not in result]
             random.shuffle(extras)
-            p1.extend(extras[:self.egg_count - len(p1)])
-            if "normal" not in p1:
-                p1[0] = "normal"
-            # P2: AI 랜덤
-            ai = pool[:]
-            random.shuffle(ai)
-            p2 = ai[:self.egg_count]
-            if "normal" not in p2:
-                p2[0] = "normal"
+            result.extend(extras[:max(0, self.egg_count - len(result))])
+            return result[:self.egg_count]
+
+        if self.mode == "multi":
+            p1 = fill(self.p1_selected)
+            p2 = fill(self.p2_selected)
+        else:
+            p1 = fill(self.p1_selected)
+            ai_pool = pool[:]
+            random.shuffle(ai_pool)
+            p2 = ai_pool[:self.egg_count]
 
         return {
             "mode":      self.mode,
@@ -244,12 +225,11 @@ class EggSelectScreen:
         cx = self.w // 2
         s.fill(self.C_BG)
 
-        # 타이틀
         mode_label = "싱글플레이" if self.mode == "single" else "멀티플레이"
         title = self.font_title.render(f"게임 설정  ({mode_label})", True, self.C_TITLE)
         s.blit(title, title.get_rect(center=(cx, 48)))
 
-        # ── 맵 선택 ──
+        # 맵 선택
         s.blit(self.font_sec.render("◆ 맵 선택", True, (160, 200, 255)),
                (self.map_rects[0].x, 68))
         for i, (name, desc, bg) in enumerate(MAPS):
@@ -258,18 +238,16 @@ class EggSelectScreen:
             pygame.draw.rect(s, bg, r, border_radius=8)
             pygame.draw.rect(s, self.C_SEL if sel else self.C_BORD,
                              r, 3 if sel else 2, border_radius=8)
-            s.blit(self.font_body.render(name, True,
-                   (220, 240, 255) if sel else (160, 185, 220)),
-                   self.font_body.render(name, True, (0,0,0)).get_rect(
-                       center=(r.centerx, r.y + 24)))
-            s.blit(self.font_sm.render(desc, True, (120, 145, 185)),
-                   self.font_sm.render(desc, True, (0,0,0)).get_rect(
-                       center=(r.centerx, r.y + 52)))
+            nm = self.font_body.render(name, True,
+                 (220, 240, 255) if sel else (160, 185, 220))
+            s.blit(nm, nm.get_rect(center=(r.centerx, r.y + 24)))
+            dc = self.font_sm.render(desc, True, (120, 145, 185))
+            s.blit(dc, dc.get_rect(center=(r.centerx, r.y + 52)))
             if sel:
                 s.blit(self.font_sm.render("✔", True, self.C_SEL), (r.x + 6, r.y + 4))
 
-        # ── 알 개수 ──
-        s.blit(self.font_sec.render("◆ 알 개수", True, (160, 200, 255)),
+        # 알 개수
+        s.blit(self.font_sec.render(f"◆ 알 개수  ({MIN_EGGS}~{MAX_EGGS})", True, (160, 200, 255)),
                (self.minus_rect.x - 10, 175))
         for r, sym, hov in [(self.minus_rect, "－", self.hov_minus),
                              (self.plus_rect,  "＋", self.hov_plus)]:
@@ -277,18 +255,16 @@ class EggSelectScreen:
             pygame.draw.rect(s, (80, 120, 200), r, 1, border_radius=6)
             t = self.font_num.render(sym, True, (200, 220, 255))
             s.blit(t, t.get_rect(center=r.center))
-        pygame.draw.rect(s, self.C_CARD,  self.count_rect, border_radius=6)
-        pygame.draw.rect(s, self.C_BORD,  self.count_rect, 1, border_radius=6)
-        s.blit(self.font_num.render(str(self.egg_count), True, (100, 220, 180)),
-               self.font_num.render(str(self.egg_count), True, (0,0,0)).get_rect(
-                   center=self.count_rect.center))
+        pygame.draw.rect(s, self.C_CARD, self.count_rect, border_radius=6)
+        pygame.draw.rect(s, self.C_BORD, self.count_rect, 1, border_radius=6)
+        ct = self.font_num.render(str(self.egg_count), True, (100, 220, 180))
+        s.blit(ct, ct.get_rect(center=self.count_rect.center))
 
-        # ── 알 선택 헤더 ──
+        # 알 선택 헤더
         section_y = 248
         if self.mode == "multi":
             s.blit(self.font_sec.render("◆ 알 선택 (직접 고르세요)", True, (160, 200, 255)),
                    (self.palette_x, section_y))
-            # 탭
             for i, (label, col) in enumerate([("P1 (파랑)", C_P1), ("P2 (빨강)", C_P2)]):
                 r = self.tab_rects[i]
                 active = (i == self.current_player_tab)
@@ -312,7 +288,7 @@ class EggSelectScreen:
                    (self.palette_x, section_y + 26))
             cur_list = self.p1_selected
 
-        # ── 팔레트 ──
+        # 팔레트
         if self.mode == "multi":
             cur_list   = self.p1_selected if self.current_player_tab == 0 else self.p2_selected
             other_list = self.p2_selected if self.current_player_tab == 0 else self.p1_selected
@@ -341,12 +317,10 @@ class EggSelectScreen:
             else:
                 pygame.draw.rect(s, self.C_BORD, r, 1, border_radius=8)
 
-            # 알 원
             pygame.draw.circle(s, ec, (r.x + 22, r.centery), 15)
             pygame.draw.circle(s, tuple(min(255, int(c * 1.4)) for c in ec),
                                (r.x + 17, r.centery - 5), 5)
 
-            # 텍스트
             s.blit(self.font_sm.render(info["name"], True,
                    (230, 245, 255) if in_cur else (150, 165, 195)),
                    (r.x + 42, r.y + 10))
@@ -354,7 +328,9 @@ class EggSelectScreen:
             s.blit(self.font_sm.render(short, True, (100, 120, 160)),
                    (r.x + 42, r.y + 30))
             if in_cur:
-                s.blit(self.font_sm.render("✔", True, hl_col), (r.right - 16, r.y + 4))
+                idx = cur_list.index(key) + 1
+                s.blit(self.font_sm.render(f"✔{idx}", True, hl_col),
+                       (r.right - 22, r.y + 4))
 
         # AI 선택 표시 (싱글)
         if self.mode == "single" and self.p2_selected:
@@ -369,11 +345,10 @@ class EggSelectScreen:
                 if bx + 36 > self.w - 40:
                     break
                 pygame.draw.circle(s, ec, (bx + 16, by + 16), 14)
-                s.blit(self.font_sm.render(EGG_INFO[etype]["name"][:2], True, (255, 255, 255)),
-                       self.font_sm.render(EGG_INFO[etype]["name"][:2], True, (0,0,0)).get_rect(
-                           center=(bx + 16, by + 16)))
+                nm = self.font_sm.render(EGG_INFO[etype]["name"][:2], True, (255, 255, 255))
+                s.blit(nm, nm.get_rect(center=(bx + 16, by + 16)))
 
-        # ── 버튼 ──
+        # 버튼
         for rect, hov, cn, ch, bord, label in [
             (self.back_rect,  self.hov_back,  self.C_BACK_N,  self.C_BACK_H,
              (100, 140, 230), "← 뒤로"),

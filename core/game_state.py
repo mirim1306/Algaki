@@ -15,52 +15,77 @@ from core.constants import *
 
 
 def _build_initial_eggs(p1_types=None, p2_types=None) -> list[Egg]:
-    """update_layout() 이후 호출 → constants 모듈에서 직접 최신 좌표 읽음."""
+    """각 플레이어 알을 자기 구역 중앙에 격자 배치."""
     import core.constants as _c
 
     eggs: list[Egg] = []
+
     types_pool = [
-        "normal", "normal", "normal",
         "barrier", "seal", "copy", "clone",
-        "bomb", "invisible", "psycho", "ice", "magnet",
+        "bomb", "invisible", "psycho", "ice", "magnet", "normal",
     ]
 
-    def place(owner: int, base_x: float, custom_types):
-        if custom_types:
-            chosen = list(custom_types)
+    def make_types(custom, count):
+        if custom:
+            lst = list(custom[:count])
         else:
             pool = types_pool[:]
             random.shuffle(pool)
-            chosen = pool[:_c.EGGS_PER_PLAYER]
-            chosen[0] = "normal"
+            lst = pool[:count]
+        # normal 강제 삽입 없음 — 선택한 그대로 사용
+        return lst
 
-        n = len(chosen)
-        rows_needed = max(4, (n + 1) // 2)
-
-        # 2열 배치: P1 오른쪽 열 추가, P2 왼쪽 열 추가
-        offset = 62
-        col_xs = [base_x, base_x + (offset if owner == 0 else -offset)]
-
-        # 보드 높이에 맞게 행 간격 조절
-        board_h = _c.BOARD_BOTTOM - _c.BOARD_TOP
-        row_gap = min(62, max(50, (board_h - 100) // max(rows_needed, 1)))
-        rows = [_c.BOARD_TOP + 60 + i * row_gap for i in range(rows_needed)]
-
-        positions = [(cx, ry) for cx in col_xs for ry in rows]
-        random.shuffle(positions)
-
+    def place(owner: int, types_list: list[str]):
+        n = len(types_list)
         r = _c.EGG_RADIUS
-        for i, t in enumerate(chosen):
+
+        # 구역 범위
+        zone_left  = _c.BOARD_LEFT
+        zone_right = _c.MID_X - 10
+        if owner == 1:
+            zone_left  = _c.MID_X + 10
+            zone_right = _c.BOARD_RIGHT
+
+        zone_w = zone_right - zone_left
+        zone_h = _c.BOARD_BOTTOM - _c.BOARD_TOP
+
+        # 열/행 수 계산 (가능한 정사각형에 가깝게)
+        cols = max(1, min(n, int(math.ceil(math.sqrt(n * zone_w / zone_h)))))
+        rows = math.ceil(n / cols)
+
+        # 셀 크기 (패딩 포함)
+        pad = r * 2 + 10
+        cell_w = max(pad, zone_w // (cols + 1))
+        cell_h = max(pad, zone_h // (rows + 1))
+
+        # 격자 시작 위치 (구역 중앙 정렬)
+        grid_w = cell_w * cols
+        grid_h = cell_h * rows
+        cx = (zone_left + zone_right) // 2
+        cy = (_c.BOARD_TOP + _c.BOARD_BOTTOM) // 2
+
+        start_x = cx - grid_w // 2 + cell_w // 2
+        start_y = cy - grid_h // 2 + cell_h // 2
+
+        positions = []
+        for row in range(rows):
+            for col in range(cols):
+                px = start_x + col * cell_w
+                py = start_y + row * cell_h
+                # 보드 안으로 clamp
+                px = max(zone_left + r + 4, min(zone_right - r - 4, px))
+                py = max(_c.BOARD_TOP + r + 4, min(_c.BOARD_BOTTOM - r - 4, py))
+                positions.append((px, py))
+
+        for i, t in enumerate(types_list):
             px, py = positions[i % len(positions)]
-            px += random.uniform(-4, 4)
-            py += random.uniform(-4, 4)
-            # 보드 안으로 강제 clamp
-            px = max(_c.BOARD_LEFT  + r + 4, min(_c.BOARD_RIGHT  - r - 4, px))
-            py = max(_c.BOARD_TOP   + r + 4, min(_c.BOARD_BOTTOM - r - 4, py))
             eggs.append(Egg(px, py, owner, t))
 
-    place(0, _c.BOARD_LEFT  + 110, p1_types)
-    place(1, _c.BOARD_RIGHT - 110, p2_types)
+    n1 = len(p1_types) if p1_types else _c.EGGS_PER_PLAYER
+    n2 = len(p2_types) if p2_types else _c.EGGS_PER_PLAYER
+
+    place(0, make_types(p1_types, n1))
+    place(1, make_types(p2_types, n2))
     return eggs
 
 
