@@ -15,11 +15,10 @@ from core.constants import *
 
 
 def _build_initial_eggs(p1_types=None, p2_types=None) -> list[Egg]:
-    """각 플레이어 알을 자기 구역 중앙에 격자 배치."""
+    """각 플레이어 알을 자기 구역에 격자 배치."""
     import core.constants as _c
 
     eggs: list[Egg] = []
-
     types_pool = [
         "barrier", "seal", "copy", "clone",
         "bomb", "invisible", "psycho", "ice", "magnet", "normal",
@@ -27,59 +26,50 @@ def _build_initial_eggs(p1_types=None, p2_types=None) -> list[Egg]:
 
     def make_types(custom, count):
         if custom:
-            lst = list(custom[:count])
-        else:
-            pool = types_pool[:]
-            random.shuffle(pool)
-            lst = pool[:count]
-        # normal 강제 삽입 없음 — 선택한 그대로 사용
-        return lst
+            return list(custom[:count])
+        pool = types_pool[:]
+        random.shuffle(pool)
+        return pool[:count]
 
     def place(owner: int, types_list: list[str]):
         n = len(types_list)
         r = _c.EGG_RADIUS
 
-        # 구역 범위
-        zone_left  = _c.BOARD_LEFT
-        zone_right = _c.MID_X - 10
-        if owner == 1:
+        if owner == 0:
+            zone_left  = _c.BOARD_LEFT
+            zone_right = _c.MID_X - 10
+        else:
             zone_left  = _c.MID_X + 10
             zone_right = _c.BOARD_RIGHT
 
         zone_w = zone_right - zone_left
         zone_h = _c.BOARD_BOTTOM - _c.BOARD_TOP
 
-        # 열/행 수 계산 (가능한 정사각형에 가깝게)
-        cols = max(1, min(n, int(math.ceil(math.sqrt(n * zone_w / zone_h)))))
+        cols = max(1, min(n, int(math.ceil(math.sqrt(n * zone_w / max(zone_h, 1))))))
         rows = math.ceil(n / cols)
 
-        # 셀 크기 (패딩 포함)
-        pad = r * 2 + 10
+        pad    = r * 2 + 12
         cell_w = max(pad, zone_w // (cols + 1))
         cell_h = max(pad, zone_h // (rows + 1))
 
-        # 격자 시작 위치 (구역 중앙 정렬)
-        grid_w = cell_w * cols
-        grid_h = cell_h * rows
         cx = (zone_left + zone_right) // 2
         cy = (_c.BOARD_TOP + _c.BOARD_BOTTOM) // 2
 
-        start_x = cx - grid_w // 2 + cell_w // 2
-        start_y = cy - grid_h // 2 + cell_h // 2
+        start_x = cx - (cell_w * cols)  // 2 + cell_w // 2
+        start_y = cy - (cell_h * rows) // 2 + cell_h // 2
 
         positions = []
         for row in range(rows):
             for col in range(cols):
                 px = start_x + col * cell_w
                 py = start_y + row * cell_h
-                # 보드 안으로 clamp
                 px = max(zone_left + r + 4, min(zone_right - r - 4, px))
                 py = max(_c.BOARD_TOP + r + 4, min(_c.BOARD_BOTTOM - r - 4, py))
                 positions.append((px, py))
 
         for i, t in enumerate(types_list):
             px, py = positions[i % len(positions)]
-            eggs.append(Egg(px, py, owner, t))
+            eggs.append(Egg(float(px), float(py), owner, t))
 
     n1 = len(p1_types) if p1_types else _c.EGGS_PER_PLAYER
     n2 = len(p2_types) if p2_types else _c.EGGS_PER_PLAYER
@@ -91,51 +81,60 @@ def _build_initial_eggs(p1_types=None, p2_types=None) -> list[Egg]:
 
 class GameState:
     def __init__(self):
-        self.eggs:     list[Egg]     = []
-        self.barriers: list[Barrier] = []
-        self.mines:    list[Mine]    = []
+        self.eggs:          list[Egg]     = []
+        self.barriers:      list[Barrier] = []
+        self.mines:         list[Mine]    = []
+        self.map_barriers:  list[Barrier] = []   # 맵 고정 장애물
+        self.map_index:     int           = 0
 
-        self.turn: int = 0
+        self.turn: int  = 0
         self.phase: str = STATE_PLAY
 
-        self.action_mode: str = ACTION_SHOOT
-        self.ability_step: int = 0
+        self.action_mode:     str  = ACTION_SHOOT
+        self.ability_step:    int  = 0
         self.ability_targets: list = []
-        self.ability_egg: Egg | None = None
+        self.ability_egg:  Egg | None = None
 
         self.selected_egg: Egg | None = None
         self.dragging: bool  = False
-        self.drag_sx: float  = 0.0
-        self.drag_sy: float  = 0.0
-        self.drag_ex: float  = 0.0
-        self.drag_ey: float  = 0.0
+        self.drag_sx:  float = 0.0
+        self.drag_sy:  float = 0.0
+        self.drag_ex:  float = 0.0
+        self.drag_ey:  float = 0.0
 
-        self.logs: list[str] = []
-        self.winner: int | None = None
-        self.simulating: bool = False
+        self.logs:      list[str]  = []
+        self.winner:    int | None = None
+        self.simulating: bool      = False
 
         self.reset()
 
     def reset(self, p1_types=None, p2_types=None, game_config=None):
         if game_config:
-            p1_types = game_config.get("p1_eggs")
-            p2_types = game_config.get("p2_eggs")
+            p1_types       = game_config.get("p1_eggs")
+            p2_types       = game_config.get("p2_eggs")
+            self.map_index = game_config.get("map_index", 0)
+
+        # 맵 고정 방벽 생성
+        from core.map_system import build_map_barriers
+        self.map_barriers = build_map_barriers(self.map_index)
+
         Egg._id_counter = 0
         self.eggs     = _build_initial_eggs(p1_types, p2_types)
         self.barriers = []
         self.mines    = []
         self.turn     = 0
         self.phase    = STATE_PLAY
-        self.action_mode = ACTION_SHOOT
+        self.action_mode  = ACTION_SHOOT
         self.ability_step = 0
         self.ability_targets = []
         self.ability_egg  = None
         self.selected_egg = None
-        self.dragging = False
-        self.simulating = False
-        self.winner = None
+        self.dragging     = False
+        self.simulating   = False
+        self.winner       = None
         self.logs = ["게임 시작! P1(파랑) 먼저."]
 
+    # ── 조회 헬퍼 ─────────────────────────────────────────────────
     def my_eggs(self, owner: int | None = None) -> list[Egg]:
         o = self.turn if owner is None else owner
         return [e for e in self.eggs if e.active and e.owner == o]
@@ -151,16 +150,20 @@ class GameState:
         if len(self.logs) > 40:
             self.logs = self.logs[-40:]
 
+    # ── 물리 업데이트 ─────────────────────────────────────────────
     def update_physics(self):
         if not self.simulating:
             return
-        triggered = step_physics(self.eggs, self.barriers, self.mines)
+
+        triggered = step_physics(self.eggs, self.barriers, self.mines,
+                                 self.map_barriers)
         for mine in triggered:
             destroyed = explode_mine(mine, self.eggs)
             self.log(f"💥 지뢰 폭발! 알 {len(destroyed)}개 파괴")
 
+        # 비활성 알 속도 정리
         for egg in self.eggs:
-            if not egg.active and egg.is_moving():
+            if not egg.active:
                 egg.vx = egg.vy = 0.0
 
         if all_still(self.eggs):
@@ -174,22 +177,23 @@ class GameState:
         p1 = self.my_eggs(1)
         if not p0:
             self.winner = 1
-            self.phase = STATE_GAMEOVER
+            self.phase  = STATE_GAMEOVER
             self.log("🎉 P2 승리!")
         elif not p1:
             self.winner = 0
-            self.phase = STATE_GAMEOVER
+            self.phase  = STATE_GAMEOVER
             self.log("🎉 P1 승리!")
 
     def _next_turn(self):
         self.turn = 1 - self.turn
-        self.selected_egg = None
-        self.action_mode  = ACTION_SHOOT
-        self.ability_step = 0
+        self.selected_egg    = None
+        self.action_mode     = ACTION_SHOOT
+        self.ability_step    = 0
         self.ability_targets = []
-        self.ability_egg  = None
+        self.ability_egg     = None
         self.log(f"── {'P1' if self.turn == 0 else 'P2'} 차례 ──")
 
+    # ── 발사 ──────────────────────────────────────────────────────
     def try_shoot(self, egg: Egg, vx: float, vy: float) -> bool:
         if egg.sealed:
             self.log("❌ 봉인된 알은 발사할 수 없습니다.")
@@ -198,11 +202,12 @@ class GameState:
             return False
         egg.vx = vx
         egg.vy = vy
-        self.simulating = True
+        self.simulating   = True
         self.selected_egg = None
         self.log(f"{'P1' if self.turn==0 else 'P2'}: {EGG_INFO[egg.type]['name']} 발사!")
         return True
 
+    # ── 능력 ──────────────────────────────────────────────────────
     def start_ability(self, egg: Egg) -> tuple[bool, str]:
         if egg.sealed:
             return False, "봉인된 알은 능력을 쓸 수 없습니다."
@@ -313,7 +318,7 @@ class GameState:
         if t == "invisible":
             ok, msg = ability_invisible(egg)
             if ok:
-                self.phase = STATE_PLAY
+                self.phase       = STATE_PLAY
                 self.action_mode = ACTION_SHOOT
                 self.ability_egg = None
             return ok, msg
@@ -321,17 +326,17 @@ class GameState:
         return False, "확인이 필요 없는 능력입니다."
 
     def _end_ability_turn(self):
-        self.simulating = False
-        self.phase = STATE_PLAY
-        self.ability_egg = None
+        self.simulating      = False
+        self.phase           = STATE_PLAY
+        self.ability_egg     = None
         self.ability_targets = []
-        self.ability_step = 0
+        self.ability_step    = 0
         self._check_winner()
         if self.phase != STATE_GAMEOVER:
             self._next_turn()
 
     def cancel_ability(self):
-        self.phase = STATE_PLAY
-        self.ability_egg = None
-        self.ability_step = 0
+        self.phase           = STATE_PLAY
+        self.ability_egg     = None
+        self.ability_step    = 0
         self.ability_targets = []
