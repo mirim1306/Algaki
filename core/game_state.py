@@ -13,7 +13,7 @@ from core.abilities import (
 )
 from core.constants import *
 
-def _build_initial_eggs() -> list[Egg]:
+def _build_initial_eggs(p1_types=None, p2_types=None) -> list[Egg]:
     eggs: list[Egg] = []
     types_pool = [
         "normal", "normal", "normal",
@@ -21,25 +21,30 @@ def _build_initial_eggs() -> list[Egg]:
         "bomb", "invisible", "psycho", "ice", "magnet",
     ]
 
-    def place(owner: int, base_x: float):
-        pool = types_pool[:]
-        random.shuffle(pool)
-        chosen = pool[:EGGS_PER_PLAYER]
-        chosen[0] = "normal"
+    def place(owner: int, base_x: float, custom_types):
+        if custom_types:
+            chosen = list(custom_types)
+        else:
+            pool = types_pool[:]
+            random.shuffle(pool)
+            chosen = pool[:EGGS_PER_PLAYER]
+            chosen[0] = "normal"
 
+        n = len(chosen)
+        rows_needed = max(4, (n + 1) // 2)
         col_xs = [base_x, base_x + (60 if owner == 0 else -60)]
-        rows = [BOARD_TOP + 80 + i * 60 for i in range(4)]
+        rows = [BOARD_TOP + 80 + i * 60 for i in range(rows_needed)]
         positions = [(cx, ry) for cx in col_xs for ry in rows]
         random.shuffle(positions)
 
         for i, t in enumerate(chosen):
-            px, py = positions[i]
+            px, py = positions[i % len(positions)]
             px += random.uniform(-6, 6)
             py += random.uniform(-6, 6)
             eggs.append(Egg(px, py, owner, t))
 
-    place(0, BOARD_LEFT  + 100)
-    place(1, BOARD_RIGHT - 100)
+    place(0, BOARD_LEFT  + 100, p1_types)
+    place(1, BOARD_RIGHT - 100, p2_types)
     return eggs
 
 
@@ -70,9 +75,12 @@ class GameState:
 
         self.reset()
 
-    def reset(self):
+    def reset(self, p1_types=None, p2_types=None, game_config=None):
+        if game_config:
+            p1_types = game_config.get("p1_eggs")
+            p2_types = game_config.get("p2_eggs")
         Egg._id_counter = 0
-        self.eggs     = _build_initial_eggs()
+        self.eggs     = _build_initial_eggs(p1_types, p2_types)
         self.barriers = []
         self.mines    = []
         self.turn     = 0

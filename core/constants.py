@@ -83,10 +83,17 @@ EGG_INFO = {
     "magnet":    {"name": "자석알",  "desc": "두 알을 붙여서 당김"},
 }
 
-STATE_MENU      = "menu"
-STATE_PLAY      = "play"
-STATE_ABILITY   = "ability"
-STATE_GAMEOVER  = "gameover"
+STATE_MENU        = "menu"
+STATE_PLAY        = "play"
+STATE_ABILITY     = "ability"
+STATE_GAMEOVER    = "gameover"
+STATE_HOWTOPLAY   = "howtoplay"
+STATE_SETTINGS    = "settings"
+STATE_MODE_SELECT = "mode_select"
+STATE_EGG_SELECT  = "egg_select"
 
 ACTION_SHOOT    = "shoot"
 ACTION_ABILITY  = "ability"
+
+MODE_SINGLE = "single"
+MODE_MULTI  = "multi"
