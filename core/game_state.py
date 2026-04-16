@@ -203,6 +203,8 @@ class GameState:
             return False, "자신의 알만 선택하세요."
         if egg.type == "normal":
             return False, "일반알은 능력이 없습니다."
+        if egg.is_clone:
+            return False, "분신은 발사만 할 수 있습니다."
         if egg.uses_left <= 0:
             return False, f"능력 사용 횟수를 모두 소진했습니다. (0/{egg.max_uses})"
 

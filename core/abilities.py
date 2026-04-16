@@ -56,7 +56,7 @@ def ability_seal(user: Egg, target: Egg) -> tuple[bool, str]:
         user.uses_left += 1
         return False, "이미 봉인된 알입니다."
     target.sealed     = True
-    target.seal_turns = 1
+    target.seal_turns = 2   # 2회 tick 후 해제: 상대 턴 → 내 다음 턴 시작 시 해제
     return True, f"알(id={target.id}) 봉인! (남은 횟수: {user.uses_left}/{user.max_uses})"
 
 
@@ -126,8 +126,12 @@ def ability_clone(user: Egg, eggs: list[Egg]) -> tuple[bool, str]:
         if (BOARD_LEFT + EGG_RADIUS < cx < BOARD_RIGHT - EGG_RADIUS and
                 BOARD_TOP + EGG_RADIUS < cy < BOARD_BOTTOM - EGG_RADIUS and
                 not pos_occupied(cx, cy, eggs, [])):
-            clone = Egg(cx, cy, user.owner, "clone")
+            # 분신 외형은 원본 타입을 따라감 (복사알이 분신 소환하면 분신도 복사알처럼 보임)
+            clone_type = user.type if user.type != "clone" else "clone"
+            clone = Egg(cx, cy, user.owner, clone_type)
             clone.is_clone = True
+            clone.uses_left = 0   # 분신은 능력 사용 불가
+            clone.max_uses  = 0
             break
     if clone is None:
         user.uses_left += 1
@@ -167,7 +171,7 @@ def explode_mine(mine: Mine, eggs: list[Egg]) -> list[Egg]:
     날리는 방향: 지뢰 중심에서 바깥쪽으로.
     """
     pushed = []
-    blast_spd = _MAX_LAUNCH_SPD * 0.5   # 최대 발사력의 절반
+    blast_spd = _MAX_LAUNCH_SPD * 1.5   # 최대 발사력의 1.5배 (확실히 날아가게)
 
     for egg in eggs:
         if not egg.active:

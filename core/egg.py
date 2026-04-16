@@ -138,7 +138,7 @@ class Barrier:
 
 
 class Mine:
-    BLAST_RADIUS = EGG_RADIUS * 4
+    BLAST_RADIUS = EGG_RADIUS * 6   # 확대: 132px
 
     def __init__(self, x: float, y: float, owner: int):
         self.x = x
