@@ -1,4 +1,3 @@
-# ui/howto_screen.py
 """게임 설명 화면 – 재정의된 알 능력 설명."""
 from __future__ import annotations
 import math, pygame

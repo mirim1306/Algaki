@@ -1,4 +1,3 @@
-# ui/input_handler.py
 """마우스·키보드 입력 처리."""
 from __future__ import annotations
 import math

@@ -1,4 +1,3 @@
-# ui/settings_screen.py
 """설정 화면 – 볼륨, FPS, 효과음 토글 등 기본 설정."""
 from __future__ import annotations
 import math, pygame

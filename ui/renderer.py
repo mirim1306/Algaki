@@ -1,4 +1,3 @@
-# ui/renderer.py
 """pygame 화면 렌더러 — UI 겹침 없이 레이아웃 정비."""
 from __future__ import annotations
 import math, pygame
@@ -91,6 +90,7 @@ class Renderer:
         self.screen.fill(C_BG)
         self._draw_board(gs)
         self._draw_map_barriers(gs)
+        self._draw_map_specials(gs)
         self._draw_mines(gs)
         self._draw_barriers(gs)
         self._draw_magnet_lines(gs)
@@ -119,7 +119,7 @@ class Renderer:
 
     # ── 맵 고정 방벽 ──────────────────────────────────────────────
     def _draw_map_barriers(self, gs: GameState):
-        for b in gs.map_barriers:
+        for b in gs.map_obj.barriers:
             if not b.active:
                 continue
             self._draw_barrier_shape(b, static=True)
@@ -130,6 +130,68 @@ class Renderer:
             if not b.active:
                 continue
             self._draw_barrier_shape(b, static=False)
+
+
+    # ── 맵 특수 오브젝트 ──────────────────────────────────────────
+    def _draw_map_specials(self, gs: GameState):
+        self._draw_map_bombs(gs)
+        self._draw_tires(gs)
+        self._draw_drains(gs)
+
+    def _draw_map_bombs(self, gs: GameState):
+        for bomb in gs.map_obj.map_bombs:
+            if not bomb.active:
+                continue
+            cx, cy = int(bomb.x), int(bomb.y)
+            # 외곽 글로우
+            pygame.draw.circle(self.screen, (100, 40, 10), (cx, cy), bomb.r + 5)
+            pygame.draw.circle(self.screen, (220, 80, 30), (cx, cy), bomb.r)
+            pygame.draw.circle(self.screen, (255, 150, 60), (cx, cy), bomb.r - 4)
+            # 심지
+            pygame.draw.line(self.screen, (200, 200, 80),
+                             (cx, cy - bomb.r), (cx + 5, cy - bomb.r - 8), 2)
+            txt = self.font_sm.render("💣", True, C_WHITE)
+            self.screen.blit(txt, txt.get_rect(center=(cx, cy)))
+
+    def _draw_tires(self, gs: GameState):
+        for tire in gs.map_obj.tires:
+            if not tire.active:
+                continue
+            cx, cy = int(tire.x), int(tire.y)
+            # 타이어 외곽 (검은 원)
+            pygame.draw.circle(self.screen, (20, 20, 20), (cx, cy), tire.r)
+            # 타이어 안쪽 (갈색 원)
+            pygame.draw.circle(self.screen, (80, 55, 20), (cx, cy), tire.r - 6)
+            # 중심 허브
+            pygame.draw.circle(self.screen, (140, 120, 60), (cx, cy), 8)
+            # 수명 표시 (남은 타격)
+            remain = tire.MAX_HITS - tire.hits
+            col = (100, 255, 100) if remain > 6 else (255, 200, 60) if remain > 3 else (255, 80, 80)
+            txt = self.font_sm.render(f"{remain}", True, col)
+            self.screen.blit(txt, txt.get_rect(center=(cx, cy - tire.r - 10)))
+            txt2 = self.font_sm.render("타이어", True, (180, 160, 80))
+            self.screen.blit(txt2, txt2.get_rect(center=(cx, cy)))
+
+    def _draw_drains(self, gs: GameState):
+        import math
+        for di, drain in enumerate(gs.map_obj.drains):
+            if not drain.active:
+                continue
+            cx, cy = int(drain.x), int(drain.y)
+            # 나선형 하수구 효과
+            t = self._tick * 0.05
+            pygame.draw.circle(self.screen, (10, 30, 35), (cx, cy), drain.r)
+            pygame.draw.circle(self.screen, (20, 80, 90), (cx, cy), drain.r, 2)
+            # 나선 선
+            for i in range(4):
+                angle = t + i * math.pi / 2
+                x2 = cx + int(math.cos(angle) * (drain.r - 4))
+                y2 = cy + int(math.sin(angle) * (drain.r - 4))
+                pygame.draw.line(self.screen, (40, 160, 180), (cx, cy), (x2, y2), 2)
+            # 번호 (대각선 짝 표시)
+            partner = drain.partner_idx
+            txt = self.font_sm.render(f"↔{partner}", True, (80, 200, 220))
+            self.screen.blit(txt, txt.get_rect(center=(cx, cy)))
 
     def _draw_barrier_shape(self, b: Barrier, static: bool):
         cx, cy = int(b.x), int(b.y)
@@ -370,6 +432,11 @@ class Renderer:
             nm_col = C_HIGHLIGHT if is_sel else C_WHITE
             nm = self.font_sm.render(f"{flags}{info['name']}", True, nm_col)
             self.screen.blit(nm, (px+22, y+3))
+            # 능력 사용 횟수
+            if egg.max_uses > 0:
+                uses_col = (100,255,100) if egg.uses_left > 0 else (180,60,60)
+                ut = self.font_sm.render(f"{egg.uses_left}/{egg.max_uses}", True, uses_col)
+                self.screen.blit(ut, (px + panel_w - ut.get_width() - 4, y+3))
             y += 22
 
         # 초과 알 수 표시

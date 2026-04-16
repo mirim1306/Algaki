@@ -1,5 +1,3 @@
-# core/constants.py
-
 SCREEN_W = 1920
 SCREEN_H = 1080
 FPS      = 60

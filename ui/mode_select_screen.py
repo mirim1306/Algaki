@@ -1,4 +1,3 @@
-# ui/mode_select_screen.py
 """모드 선택 화면 – 싱글플레이 / 멀티플레이."""
 from __future__ import annotations
 import math, pygame

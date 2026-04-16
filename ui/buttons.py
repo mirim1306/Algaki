@@ -1,4 +1,3 @@
-# ui/buttons.py
 from __future__ import annotations
 import pygame
 from core.constants import C_BTN, C_BTN_HOV, C_BTN_ACT, C_WHITE, C_GRAY, C_HIGHLIGHT
