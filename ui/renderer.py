@@ -305,7 +305,9 @@ class Renderer:
             self.screen.blit(self.font_sm.render("❄", True, (100, 230, 255)), (ix, iy))
             iy += 14
         if egg.sealed:
-            self.screen.blit(self.font_sm.render("🔒", True, (230, 180, 60)), (ix-4, iy))
+            # 봉인 잠금 아이콘 + 잔여 턴
+            seal_txt = self.font_sm.render(f"🔒{egg.seal_turns}", True, (230, 180, 60))
+            self.screen.blit(seal_txt, (ix - 6, iy))
             iy += 14
 
         # 복사알 저장 레이블 (알 아래)
@@ -314,7 +316,8 @@ class Renderer:
             ct = self.font_sm.render(f"[{label}]", True, (255, 220, 60))
             self.screen.blit(ct, (cx - ct.get_width()//2, cy + egg.r + 2))
         elif egg.type == "copy" and egg.copy_mode == "power":
-            ct = self.font_sm.render("[위력]", True, (100, 255, 180))
+            spd = math.hypot(egg.copied_vx or 0, egg.copied_vy or 0)
+            ct = self.font_sm.render(f"[위:{spd:.0f}]", True, (100, 255, 180))
             self.screen.blit(ct, (cx - ct.get_width()//2, cy + egg.r + 2))
 
     # ── 조준선 ────────────────────────────────────────────────────
@@ -381,12 +384,25 @@ class Renderer:
 
         # 모드
         if gs.phase == STATE_ABILITY and gs.ability_egg:
-            desc    = EGG_INFO.get(gs.ability_egg.type, {}).get("name", "")
-            mode_t  = self.font_md.render(f"능력 사용 중: {desc}", True, C_HIGHLIGHT)
+            egg  = gs.ability_egg
+            desc = EGG_INFO.get(egg.type, {}).get("name", "")
+            # 복사알 저장 상태 추가 표시
+            extra = ""
+            if egg.type == "copy":
+                if egg.copy_mode == "ability" and egg.copied_ability:
+                    aname = EGG_INFO.get(egg.copied_ability, {}).get("name", "?")
+                    extra = f"  |  저장됨: [{aname}능력]"
+                elif egg.copy_mode == "power" and egg.copied_vx is not None:
+                    import math as _m
+                    spd = _m.hypot(egg.copied_vx, egg.copied_vy)
+                    extra = f"  |  저장됨: [위력{spd:.0f}]"
+                else:
+                    extra = "  |  저장 없음"
+            mode_t = self.font_md.render(f"능력 사용 중: {desc}{extra}", True, C_HIGHLIGHT)
         elif gs.action_mode == ACTION_SHOOT:
-            mode_t  = self.font_md.render("모드: 발사", True, C_GRAY)
+            mode_t = self.font_md.render("모드: 발사", True, C_GRAY)
         else:
-            mode_t  = self.font_md.render("모드: 능력", True, (200, 160, 255))
+            mode_t = self.font_md.render("모드: 능력", True, (200, 160, 255))
         self.screen.blit(mode_t, mode_t.get_rect(center=(cx, bar_y + 38)))
 
     def _draw_side_panel(self, gs: GameState, owner: int):

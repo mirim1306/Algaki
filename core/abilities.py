@@ -163,7 +163,8 @@ def ability_bomb(user: Egg, tx: float, ty: float,
 def explode_mine(mine: Mine, eggs: list[Egg]) -> list[Egg]:
     """
     폭탄알 지뢰 폭발: 파괴 없음.
-    폭발 반경 내 모든 알(아군 포함)을 최대발사력 절반 세기로 날림.
+    폭발 반경 내 모든 알(아군 포함 광역)을 최대발사력 절반 세기로 날림.
+    날리는 방향: 지뢰 중심에서 바깥쪽으로.
     """
     pushed = []
     blast_spd = _MAX_LAUNCH_SPD * 0.5   # 최대 발사력의 절반
@@ -176,8 +177,12 @@ def explode_mine(mine: Mine, eggs: list[Egg]) -> list[Egg]:
         dist = math.hypot(dx, dy)
         if dist < mine.BLAST_RADIUS:
             if dist < 0.1:
-                dx, dy, dist = 1.0, 0.0, 1.0
-            nx, ny = dx / dist, dy / dist
+                # 지뢰와 거의 같은 위치면 랜덤 방향으로 날림
+                import random
+                angle = random.uniform(0, math.pi * 2)
+                dx, dy = math.cos(angle), math.sin(angle)
+                dist   = 1.0
+            nx, ny = dx / dist, dy / dist   # 지뢰→알 방향 (바깥쪽)
             # 거리에 따라 감쇠: 중심일수록 강하게
             ratio  = (mine.BLAST_RADIUS - dist) / mine.BLAST_RADIUS
             force  = blast_spd * ratio

@@ -72,12 +72,13 @@ def apply_magnet(egg: Egg):
 
 
 def _is_out_of_board(egg: Egg) -> bool:
-    """알 중심이 반지름만큼 보드 밖으로 나가면 파괴 (절반 이상 나가면 파괴)."""
+    """알 중심이 보드 경계를 넘으면 파괴 (반 이상 나가면 파괴)."""
     import core.constants as _c
-    return (egg.x < _c.BOARD_LEFT   - egg.r or
-            egg.x > _c.BOARD_RIGHT  + egg.r or
-            egg.y < _c.BOARD_TOP    - egg.r or
-            egg.y > _c.BOARD_BOTTOM + egg.r)
+    # 중심이 경계를 넘는 순간 = 절반 이상 나간 것
+    return (egg.x < _c.BOARD_LEFT   or
+            egg.x > _c.BOARD_RIGHT  or
+            egg.y < _c.BOARD_TOP    or
+            egg.y > _c.BOARD_BOTTOM)
 
 
 def step_physics(eggs: list[Egg], barriers: list[Barrier], mines: list[Mine],
@@ -85,7 +86,6 @@ def step_physics(eggs: list[Egg], barriers: list[Barrier], mines: list[Mine],
     """
     한 프레임 물리.
     반환: (triggered_mines, map_bomb_events)
-      map_bomb_events: list of (n_killed, n_pushed)
     """
     triggered:       list[Mine]            = []
     map_bomb_events: list[tuple[int, int]] = []
@@ -159,7 +159,6 @@ def step_physics(eggs: list[Egg], barriers: list[Barrier], mines: list[Mine],
                     killed, pushed = explode_map_bomb(bomb, eggs, map_bombs)
                     map_bomb_events.append((len(killed), len(pushed)))
                     break
-        # 연쇄 폭발
         changed = True
         while changed:
             changed = False
@@ -184,10 +183,12 @@ def step_physics(eggs: list[Egg], barriers: list[Barrier], mines: list[Mine],
                     break
 
     # ── 폭탄알 지뢰 발동 ───────────────────────────────────────
+    # 아군 포함 광역: 자기 알도 날릴 수 있음
     for mine in mines:
         if not mine.active or mine.triggered:
             continue
         for egg in [e for e in eggs if e.active]:
+            # 아군 제외하고 적 알만 감지
             if egg.owner != mine.owner and mine.in_blast(egg):
                 mine.triggered = True
                 triggered.append(mine)

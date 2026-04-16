@@ -39,7 +39,6 @@ class InputHandler:
             if event.key == pygame.K_r:
                 gs.reset()
                 return
-            # ESC는 main.py에서 홈으로 전환 처리
 
         if gs.phase == STATE_GAMEOVER:
             return
@@ -60,7 +59,6 @@ class InputHandler:
                     self._msg(gs, msg)
                 return
 
-            # confirm 버튼: 현재 능력이 필요 없으므로 비워둠
             if self.buttons["confirm"].is_clicked(event):
                 if gs.phase == STATE_ABILITY:
                     ok, msg = gs.handle_ability_confirm()
@@ -102,7 +100,7 @@ class InputHandler:
                 self._msg(gs, msg)
             return
 
-        # 발사 모드: 자신의 알 선택
+        # 발사 모드
         my_egg = _egg_at(gs, mx, my, owner_filter=gs.turn)
         if my_egg:
             if my_egg.sealed:
@@ -129,7 +127,7 @@ class InputHandler:
         dy   = gs.drag_sy - my
         dist = math.hypot(dx, dy)
         if dist < 5:
-            return   # 클릭만 → 선택 유지
+            return
 
         dist_c = min(dist, MAX_LAUNCH_DIST)
         nx, ny = dx / dist, dy / dist
@@ -148,17 +146,13 @@ class InputHandler:
         self.buttons["shoot"].active   = (gs.action_mode == ACTION_SHOOT
                                           and gs.phase != STATE_ABILITY)
         self.buttons["ability"].active = (gs.phase == STATE_ABILITY)
-        can_confirm = (gs.phase == STATE_ABILITY
-                       and gs.ability_egg is not None)
-        self.buttons["confirm"].active = False   # 현재 미사용
+        self.buttons["confirm"].active = False
         self.buttons["cancel"].active  = (gs.phase == STATE_ABILITY)
 
     def draw_buttons(self, screen, gs: GameState):
         for key, btn in self.buttons.items():
-            if key in ("confirm",) and gs.phase != STATE_ABILITY:
-                continue
             if key == "confirm":
-                continue   # confirm 버튼 숨김 (필요 없는 능력 제거됨)
+                continue   # confirm 버튼 숨김
             if key == "cancel" and gs.phase != STATE_ABILITY:
                 continue
             btn.draw(screen)
