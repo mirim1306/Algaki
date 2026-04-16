@@ -134,20 +134,20 @@ class GameState:
         if not self.simulating:
             return
 
-        # 맵 배경 방벽 리스트 (Barrier 형태)
-        map_barriers = list(self.map_obj.barriers)
-
-        triggered = step_physics(self.eggs, self.barriers, self.mines, map_barriers)
+        triggered, bomb_events = step_physics(self.eggs, self.barriers,
+                                              self.mines, self.map_obj)
         for mine in triggered:
             pushed = explode_mine(mine, self.eggs)
-            self.log(f"💥 지뢰 폭발! {len(pushed)}개 알 밀림")
+            if pushed:
+                self.log(f"💥 지뢰 폭발! {len(pushed)}개 알 밀림")
+            else:
+                self.log("💥 지뢰 폭발!")
 
-        # 맵 폭탄 처리
-        self._process_map_bombs()
-        # 타이어 처리
-        self._process_tires()
-        # 하수구 처리
-        self._process_drains()
+        for n_killed, n_pushed in bomb_events:
+            if n_killed > 0:
+                self.log(f"💥 맵 폭탄 폭발! {n_killed}개 파괴, {n_pushed}개 밀림")
+            else:
+                self.log(f"💥 맵 폭탄 폭발! {n_pushed}개 밀림")
 
         for egg in self.eggs:
             if not egg.active:
@@ -160,102 +160,13 @@ class GameState:
                 self._next_turn()
 
     def _process_map_bombs(self):
-        """맵 폭탄 — 알이 닿으면 폭발, 연쇄 가능."""
-        active_eggs = [e for e in self.eggs if e.active]
-        bombs       = self.map_obj.map_bombs
-
-        # 폭발할 폭탄 탐색
-        to_explode = set()
-        for bi, bomb in enumerate(bombs):
-            if not bomb.active:
-                continue
-            for egg in active_eggs:
-                if bomb.overlaps_egg(egg):
-                    to_explode.add(bi)
-                    break
-
-        if not to_explode:
-            return
-
-        # 연쇄 (폭발한 폭탄이 다른 폭탄 반경 안이면 연쇄)
-        changed = True
-        while changed:
-            changed = False
-            for bi in list(to_explode):
-                for bj, bomb2 in enumerate(bombs):
-                    if bj not in to_explode and bomb2.active:
-                        if bombs[bi].in_blast(bomb2):
-                            to_explode.add(bj)
-                            changed = True
-
-        for bi in to_explode:
-            bomb = bombs[bi]
-            if not bomb.active:
-                continue
-            bomb.active = False
-            # 반경 내 알과 함께 파괴 (밀려남)
-            for egg in active_eggs:
-                dx   = egg.x - bomb.x
-                dy   = egg.y - bomb.y
-                dist = math.hypot(dx, dy)
-                if dist < bomb.BLAST_RADIUS:
-                    if dist < 0.1:
-                        dx, dy, dist = 1.0, 0.0, 1.0
-                    nx, ny = dx/dist, dy/dist
-                    force  = (bomb.BLAST_RADIUS - dist) / bomb.BLAST_RADIUS * 20
-                    egg.vx += nx * force
-                    egg.vy += ny * force
-            self.log(f"💥 맵 폭탄 폭발!")
+        pass  # physics.py에서 처리됨
 
     def _process_tires(self):
-        """타이어 — 1.5배 반사, 수명 10회."""
-        active_eggs = [e for e in self.eggs if e.active]
-        for tire in self.map_obj.tires:
-            if not tire.active:
-                continue
-            for egg in active_eggs:
-                if not egg.is_moving():
-                    continue
-                if tire.overlaps_egg(egg):
-                    dx   = egg.x - tire.x
-                    dy   = egg.y - tire.y
-                    dist = math.hypot(dx, dy)
-                    if dist < 0.001:
-                        dx, dy, dist = 1.0, 0.0, 1.0
-                    nx, ny = dx/dist, dy/dist
-
-                    # 겹침 분리
-                    overlap = (egg.r + tire.r) - dist
-                    egg.x += nx * (overlap + 0.5)
-                    egg.y += ny * (overlap + 0.5)
-
-                    # 1.5배 반사 (법선 방향 속도 성분만)
-                    dot = egg.vx * nx + egg.vy * ny
-                    if dot < 0:
-                        egg.vx -= 2 * dot * nx * tire.BOOST
-                        egg.vy -= 2 * dot * ny * tire.BOOST
-
-                    expired = tire.register_hit()
-                    if expired:
-                        self.log("🔴 타이어 수명 소진! 사라집니다.")
-                    break   # 한 프레임에 하나만
+        pass  # physics.py에서 처리됨
 
     def _process_drains(self):
-        """하수구 — 반경 안에 들어온 알을 대각선 구멍으로 순간이동."""
-        drains      = self.map_obj.drains
-        active_eggs = [e for e in self.eggs if e.active]
-        for di, drain in enumerate(drains):
-            if not drain.active:
-                continue
-            partner = drains[drain.partner_idx]
-            for egg in active_eggs:
-                if drain.in_range(egg):
-                    # 순간이동
-                    egg.x = partner.x
-                    egg.y = partner.y
-                    # 속도 유지 (방향 유지)
-                    self.log(f"🌀 하수구! 알이 대각선 구멍으로 순간이동!")
-                    break
+        pass  # physics.py에서 처리됨
 
     # ── 승패 판정 ──────────────────────────────────────────────────
     def _check_winner(self):
