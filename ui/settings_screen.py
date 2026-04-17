@@ -57,46 +57,70 @@ class SettingsScreen:
 
     def _build_rows(self):
         cx = self.w // 2
-        row_h = 68
-        start_y = 130
+        row_h   = 72
+        start_y = 120
 
-        # 각 설정 행: (key, label, type)
-        # type: "slider" | "toggle" | "cycle"
         self.rows = [
-            ("bgm_volume",   "BGM 볼륨",        "slider"),
-            ("sfx_volume",   "효과음 볼륨",      "slider"),
-            ("show_fps",     "FPS 표시",         "toggle"),
-            ("show_grid",    "그리드 표시",       "toggle"),
-            ("friction_lvl", "마찰력",           "cycle"),
+            ("bgm_volume",   "BGM 볼륨",    "slider"),
+            ("sfx_volume",   "효과음 볼륨", "slider"),
+            ("show_fps",     "FPS 표시",    "toggle"),
+            ("show_grid",    "그리드 표시", "toggle"),
+            ("friction_lvl", "마찰력",      "cycle"),
         ]
 
-        card_w = int(self.w * 0.55)
+        card_w   = int(self.w * 0.60)   # 카드 너비
+        pad      = 16                   # 카드 내부 좌우 여백
+        lbl_w    = 180                  # 라벨 영역 너비
+        btn_w    = 36                   # - / + 버튼 너비
+        val_w    = 56                   # 수치 텍스트 너비
+        gap      = 8                    # 각 요소 간격
+        card_x0  = cx - card_w // 2
+
         self.rects: dict[str, dict] = {}
         for i, (key, label, typ) in enumerate(self.rows):
-            y = start_y + i * row_h
-            card = pygame.Rect(cx - card_w // 2, y, card_w, row_h - 8)
+            y    = start_y + i * row_h
+            card = pygame.Rect(card_x0, y, card_w, row_h - 6)
 
-            # 슬라이더 / 버튼 영역
             if typ == "slider":
-                bar_x = cx - card_w // 2 + 220
-                bar_w = card_w - 240
-                minus_r = pygame.Rect(bar_x - 44, y + 14, 36, 36)
-                plus_r  = pygame.Rect(bar_x + bar_w + 8, y + 14, 36, 36)
+                # [card_x0+pad+lbl_w] [gap] [minus] [gap] [bar] [gap] [plus] [gap] [val]
+                cx0      = card_x0 + pad + lbl_w + gap
+                minus_x  = cx0
+                bar_x    = minus_x + btn_w + gap
+                plus_x   = card_x0 + card_w - pad - val_w - gap - btn_w
+                bar_w    = plus_x - gap - bar_x
+                bar_w    = max(40, bar_w)
+
+                minus_r = pygame.Rect(minus_x, y + 17, btn_w, 32)
+                plus_r  = pygame.Rect(plus_x,  y + 17, btn_w, 32)
+
                 self.rects[key] = {
-                    "card": card, "bar_x": bar_x, "bar_w": bar_w,
-                    "bar_y": y + 24, "minus": minus_r, "plus": plus_r,
+                    "card":  card,
+                    "bar_x": bar_x,
+                    "bar_w": bar_w,
+                    "bar_y": y + 28,
+                    "val_x": card_x0 + card_w - pad - val_w + 4,
+                    "val_y": y + 22,
+                    "minus": minus_r,
+                    "plus":  plus_r,
                 }
+
             elif typ == "toggle":
-                toggle_r = pygame.Rect(cx + card_w // 2 - 90, y + 14, 70, 36)
+                toggle_w = 72
+                toggle_r = pygame.Rect(card_x0 + card_w - pad - toggle_w,
+                                       y + 16, toggle_w, 36)
                 self.rects[key] = {"card": card, "toggle": toggle_r}
+
             elif typ == "cycle":
-                left_r  = pygame.Rect(cx - card_w // 2 + 210, y + 14, 36, 36)
-                right_r = pygame.Rect(cx + card_w // 2 - 50, y + 14, 36, 36)
+                # [◀] [중앙 텍스트] [▶]  모두 카드 안
+                left_r  = pygame.Rect(card_x0 + pad + lbl_w + gap,
+                                      y + 17, btn_w, 32)
+                right_r = pygame.Rect(card_x0 + card_w - pad - btn_w,
+                                      y + 17, btn_w, 32)
                 self.rects[key] = {"card": card, "left": left_r, "right": right_r}
 
         bw, bh = 160, 46
         self.back_rect = pygame.Rect(cx - bw // 2, self.h - bh - 16, bw, bh)
-        self.hov_back = False
+        self.hov_back  = False
 
     def handle_event(self, event: pygame.event.Event) -> bool:
         if event.type == pygame.MOUSEMOTION:
@@ -151,20 +175,25 @@ class SettingsScreen:
 
             if typ == "slider":
                 val = getattr(self.s, key)
-                bx = info["bar_x"]; bw = info["bar_w"]; by = info["bar_y"]
+                bx  = info["bar_x"]
+                bw  = info["bar_w"]
+                by  = info["bar_y"]
                 # 슬라이더 트랙
                 pygame.draw.rect(s, (30, 40, 80), (bx, by, bw, 10), border_radius=5)
-                fill_w = int(bw * val / 100)
+                fill_w = max(0, int(bw * val / 100))
                 pygame.draw.rect(s, (60, 140, 240), (bx, by, fill_w, 10), border_radius=5)
+                # 핸들 점
+                handle_x = bx + fill_w
+                pygame.draw.circle(s, (120, 180, 255), (handle_x, by + 5), 7)
                 # - + 버튼
-                for r, sym in [(info["minus"], "-"), (info["plus"], "+")]:
+                for r, sym in [(info["minus"], "−"), (info["plus"], "+")]:
                     pygame.draw.rect(s, self.C_BTN_N, r, border_radius=6)
                     pygame.draw.rect(s, (80, 120, 200), r, 1, border_radius=6)
                     t = self.font_val.render(sym, True, (200, 220, 255))
                     s.blit(t, t.get_rect(center=r.center))
-                # 수치
+                # 수치 (카드 안 오른쪽)
                 vt = self.font_val.render(f"{val}%", True, self.C_VAL)
-                s.blit(vt, (bx + bw + 52, by - 6))
+                s.blit(vt, (info["val_x"], info["val_y"]))
 
             elif typ == "toggle":
                 val = getattr(self.s, key)
