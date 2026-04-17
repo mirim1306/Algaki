@@ -145,7 +145,7 @@ def step_physics(eggs: list[Egg], barriers: list[Barrier], mines: list[Mine],
                     egg.vy -= 2 * dot * ny * (RESTITUTION * tire.BOOST)
                 tire.register_hit()
 
-    # ── 알 ↔ 맵 폭탄 (연쇄 포함) ──────────────────────────────
+    # ── 알 ↔ 맵 폭탄 (연쇄 없음, 각 폭탄 독립) ─────────────────
     if map_bombs:
         from core.map_system import explode_map_bomb
         for bomb in list(map_bombs):
@@ -153,45 +153,64 @@ def step_physics(eggs: list[Egg], barriers: list[Barrier], mines: list[Mine],
                 continue
             for egg in [e for e in eggs if e.active]:
                 if bomb.overlaps_egg(egg):
-                    for b in map_bombs:
-                        if hasattr(b, '_chain_pending'):
-                            del b._chain_pending
-                    killed, pushed = explode_map_bomb(bomb, eggs, map_bombs)
+                    killed, pushed = explode_map_bomb(bomb, eggs)
                     map_bomb_events.append((len(killed), len(pushed)))
-                    break
-        changed = True
-        while changed:
-            changed = False
-            for bomb in list(map_bombs):
-                if getattr(bomb, '_chain_pending', False) and bomb.active:
-                    del bomb._chain_pending
-                    killed, pushed = explode_map_bomb(bomb, eggs, map_bombs)
-                    map_bomb_events.append((len(killed), len(pushed)))
-                    changed = True
+                    break   # 이 폭탄은 처리 완료, 다음 폭탄으로
 
-    # ── 하수구 처리 ─────────────────────────────────────────────
+    # ── 하수구 처리 — 쿨다운으로 재진입 방지 ──────────────────
     if drains:
         for egg in [e for e in eggs if e.active]:
+            # drain_cooldown: 순간이동 후 재진입 방지 카운터
+            if not hasattr(egg, 'drain_cooldown'):
+                egg.drain_cooldown = 0
+            if egg.drain_cooldown > 0:
+                egg.drain_cooldown -= 1
+                continue   # 쿨다운 중이면 하수구 무시
             for drain in drains:
                 if not drain.active:
                     continue
                 if drain.in_range(egg):
                     partner = drains[drain.partner_idx]
                     if partner.active:
-                        egg.x = partner.x + 2
-                        egg.y = partner.y + 2
+                        # 파트너 구멍 밖으로 살짝 밀어서 배출
+                        dx_out = egg.vx if abs(egg.vx) > 0.1 else 1.0
+                        dy_out = egg.vy if abs(egg.vy) > 0.1 else 0.0
+                        dist_out = max(math.hypot(dx_out, dy_out), 0.1)
+                        nx_out = dx_out / dist_out
+                        ny_out = dy_out / dist_out
+                        # partner drain 경계 바깥 (SUCK_DIST + egg.r + 5)에 배치
+                        clearance = drain.SUCK_DIST + egg.r + 5
+                        egg.x = partner.x + nx_out * clearance
+                        egg.y = partner.y + ny_out * clearance
+                        # 쿨다운 설정: 충분히 나올 시간
+                        egg.drain_cooldown = 30   # 약 0.5초(60fps 기준)
                     break
 
     # ── 폭탄알 지뢰 발동 ───────────────────────────────────────
-    # 아군 포함 광역: 자기 알도 날릴 수 있음
+    _MAX_BLAST_SPD = MAX_LAUNCH_DIST * LAUNCH_POWER * 1.5
     for mine in mines:
         if not mine.active or mine.triggered:
             continue
         for egg in [e for e in eggs if e.active]:
-            # 아군 제외하고 적 알만 감지
+            # 적 알만 감지 (트리거)
             if egg.owner != mine.owner and mine.in_blast(egg):
                 mine.triggered = True
                 triggered.append(mine)
+                # 즉시 모든 알(트리거 알 포함) 날리기
+                for target in [e for e in eggs if e.active]:
+                    dx2 = target.x - mine.x
+                    dy2 = target.y - mine.y
+                    d2  = math.hypot(dx2, dy2)
+                    if d2 < mine.BLAST_RADIUS:
+                        if d2 < 0.1:
+                            import random as _r
+                            a2 = _r.uniform(0, math.pi * 2)
+                            dx2, dy2, d2 = math.cos(a2), math.sin(a2), 1.0
+                        nx2, ny2 = dx2 / d2, dy2 / d2
+                        ratio2   = (mine.BLAST_RADIUS - d2) / mine.BLAST_RADIUS
+                        force2   = _MAX_BLAST_SPD * ratio2
+                        target.vx += nx2 * force2
+                        target.vy += ny2 * force2
                 break
 
     return triggered, map_bomb_events

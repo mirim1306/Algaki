@@ -28,7 +28,7 @@ class MapBomb:
     """맵 폭탄 — 알이 닿으면 폭발.
     KILL_RADIUS 이내 알은 즉시 파괴,
     BLAST_RADIUS 이내 알은 강하게 밀려남.
-    연쇄 가능.
+    연쇄 폭발 없음.
     """
     KILL_RADIUS  = 50   # 즉시 파괴 반경
     BLAST_RADIUS = 120  # 밀어내기 반경
@@ -41,9 +41,6 @@ class MapBomb:
 
     def overlaps_egg(self, egg: Egg) -> bool:
         return math.hypot(self.x - egg.x, self.y - egg.y) < self.r + egg.r
-
-    def in_blast(self, other: "MapBomb") -> bool:
-        return math.hypot(self.x - other.x, self.y - other.y) < self.BLAST_RADIUS
 
 
 class Tire:
@@ -123,19 +120,17 @@ def _build_drain_map(obj: MapObjects):
         obj.drains.append(Drain(float(x), float(y), partner))
 
 
-def explode_map_bomb(bomb: MapBomb, eggs: list[Egg],
-                     all_bombs: list[MapBomb]) -> tuple[list[Egg], list[Egg]]:
+def explode_map_bomb(bomb: MapBomb, eggs: list[Egg]) -> tuple[list[Egg], list[Egg]]:
     """
-    맵 폭탄 폭발 처리.
+    맵 폭탄 폭발 처리. 연쇄 폭발 없음 — 각 폭탄은 독립적으로 동작.
     반환: (파괴된 알 목록, 밀린 알 목록)
-    연쇄: BLAST_RADIUS 내 다른 폭탄도 폭발 예약(active=True인 것만).
     """
     if not bomb.active:
         return [], []
     bomb.active = False
 
-    killed  = []
-    pushed  = []
+    killed = []
+    pushed = []
 
     for egg in eggs:
         if not egg.active:
@@ -158,13 +153,6 @@ def explode_map_bomb(bomb: MapBomb, eggs: list[Egg],
             egg.vx += nx * force
             egg.vy += ny * force
             pushed.append(egg)
-
-    # 연쇄 폭발 예약 (실제 폭발은 step_physics에서 처리)
-    for other in all_bombs:
-        if other is bomb or not other.active:
-            continue
-        if bomb.in_blast(other):
-            other._chain_pending = True   # 다음 루프에서 처리
 
     return killed, pushed
 
