@@ -139,14 +139,10 @@ def explode_map_bomb(bomb: MapBomb, eggs: list[Egg]) -> tuple[list[Egg], list[Eg
             egg.vx = egg.vy = 0.0
             killed.append(egg)
         elif dist < bomb.BLAST_RADIUS:
-            #
-            if dist < 0.1:
-                dx, dy, dist = 1.0, 0.0, 1.0
-            nx, ny = dx / dist, dy / dist
-            force  = (bomb.BLAST_RADIUS - dist) / bomb.BLAST_RADIUS * 28
-            egg.vx += nx * force
-            egg.vy += ny * force
-            pushed.append(egg)
+            #  — 날아가지 않고 즉시 파괴
+            egg.active = False
+            egg.vx = egg.vy = 0.0
+            killed.append(egg)
 
     return killed, pushed
 
