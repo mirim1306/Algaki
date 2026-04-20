@@ -1,20 +1,20 @@
 SCREEN_W = 1920
 SCREEN_H = 1080
 FPS      = 60
-TITLE    = "알까기 능력물"
+TITLE    = " "
 
-# ── 물리 ─────────────────────────────────────────────
+# --  ---------------------------------------------
 EGG_RADIUS      = 22
-FRICTION        = 0.975          # 마찰 증가 (0.985→0.975)
-RESTITUTION     = 0.85           # 반발계수 약간 올림
+FRICTION        = 0.975          #   (0.985→0.975)
+RESTITUTION     = 0.85           #
 MIN_SPEED       = 0.08
 MAX_LAUNCH_DIST = 160
-LAUNCH_POWER    = 0.14           # 발사력 감소 (0.22→0.14)
+LAUNCH_POWER    = 0.14           #   (0.22→0.14)
 ICE_SLIP_MULT   = 2.0
 MAGNET_DIST     = 280
 MAGNET_FORCE    = 0.45
 
-# ── 보드 (update_layout으로 동적 설정) ───────────────
+# --  (update_layout  ) ---------------
 BOARD_LEFT   = 200
 BOARD_TOP    = 110
 BOARD_RIGHT  = 1720
@@ -31,12 +31,12 @@ def update_layout(sw: int, sh: int):
     _c.BOARD_BOTTOM = sh - int(sh * 0.17)
     _c.MID_X        = (_c.BOARD_LEFT + _c.BOARD_RIGHT) // 2
 
-# ── 알 개수 ──────────────────────────────────────────
-EGGS_PER_PLAYER = 5   # 기본 5개
-MIN_EGGS        = 3   # 최소 3개
-MAX_EGGS        = 10  # 최대 10개
+# --   ------------------------------------------
+EGGS_PER_PLAYER = 5   #  5
+MIN_EGGS        = 3   #  3
+MAX_EGGS        = 10  #  10
 
-# ── 색상 팔레트 ───────────────────────────────────────
+# --   ---------------------------------------
 C_BG          = (18,  22,  40)
 C_BOARD       = (28,  32,  55)
 C_LINE        = (60,  70, 110)

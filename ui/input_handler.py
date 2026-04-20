@@ -1,4 +1,4 @@
-"""마우스·키보드 입력 처리."""
+"""마우스/키보드 입력 처리."""
 from __future__ import annotations
 import math
 import pygame
@@ -43,12 +43,12 @@ class InputHandler:
         if gs.phase == STATE_GAMEOVER:
             return
 
-        # ── 버튼 클릭 ─────────────────────────────────────────
+        # --   -----------------------------------------
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if self.buttons["shoot"].is_clicked(event):
                 gs.action_mode = ACTION_SHOOT
                 gs.cancel_ability()
-                self._msg(gs, "발사 모드로 전환")
+                self._msg(gs, "먼저 자신의 알을 선택하세요.")
                 return
 
             if self.buttons["ability"].is_clicked(event):
@@ -67,10 +67,10 @@ class InputHandler:
 
             if self.buttons["cancel"].is_clicked(event):
                 gs.cancel_ability()
-                self._msg(gs, "능력 취소")
+                self._msg(gs, " ")
                 return
 
-        # ── 보드 입력 ─────────────────────────────────────────
+        # --   -----------------------------------------
         in_board = (BOARD_LEFT <= mx <= BOARD_RIGHT and
                     BOARD_TOP  <= my <= BOARD_BOTTOM)
 
@@ -100,11 +100,11 @@ class InputHandler:
                 self._msg(gs, msg)
             return
 
-        # 발사 모드
+        #
         my_egg = _egg_at(gs, mx, my, owner_filter=gs.turn)
         if my_egg:
             if my_egg.sealed:
-                gs.log("봉인된 알은 선택할 수 없습니다.")
+                gs.log("먼저 자신의 알을 선택하세요.")
                 return
             gs.selected_egg = my_egg
             gs.dragging  = True
@@ -152,7 +152,7 @@ class InputHandler:
     def draw_buttons(self, screen, gs: GameState):
         for key, btn in self.buttons.items():
             if key == "confirm":
-                continue   # confirm 버튼 숨김
+                continue   # confirm
             if key == "cancel" and gs.phase != STATE_ABILITY:
                 continue
             btn.draw(screen)

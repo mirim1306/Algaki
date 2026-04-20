@@ -1,6 +1,5 @@
 """
 알 능력 로직.
-폭탄알 지뢰: 폭발 시 파괴 없음 — 최대발사력 절반으로 밀어냄 (광역).
 """
 from __future__ import annotations
 import math, random
@@ -28,7 +27,7 @@ def _check_uses(user: Egg) -> tuple[bool, str]:
     return True, ""
 
 
-# ── 방벽알 ───────────────────────────────────────────────────────
+# -- 방벽알 ----------------------------------------------------------
 
 def ability_barrier(user: Egg, tx: float, ty: float,
                     eggs: list[Egg], barriers: list[Barrier]) -> tuple[bool, str]:
@@ -46,7 +45,7 @@ def ability_barrier(user: Egg, tx: float, ty: float,
     return True, f"방벽 생성! (남은 횟수: {user.uses_left}/{user.max_uses})"
 
 
-# ── 봉인알 ───────────────────────────────────────────────────────
+# -- 봉인알 ----------------------------------------------------------
 
 def ability_seal(user: Egg, target: Egg) -> tuple[bool, str]:
     ok, msg = _check_uses(user)
@@ -56,7 +55,7 @@ def ability_seal(user: Egg, target: Egg) -> tuple[bool, str]:
         user.uses_left += 1
         return False, "이미 봉인된 알입니다."
     target.sealed     = True
-    target.seal_turns = 2   # 2회 tick 후 해제: 상대 턴 → 내 다음 턴 시작 시 해제
+    target.seal_turns = 2   # 2회 tick 후 해제: 상대 턴 -> 내 다음 턴 시작 시 해제
     return True, f"알(id={target.id}) 봉인! (남은 횟수: {user.uses_left}/{user.max_uses})"
 
 
@@ -65,11 +64,11 @@ def tick_seal(eggs: list[Egg]):
         if egg.sealed and egg.seal_turns > 0:
             egg.seal_turns -= 1
             if egg.seal_turns <= 0:
-                egg.sealed = False
+                egg.sealed     = False
                 egg.seal_turns = 0
 
 
-# ── 복사알 ───────────────────────────────────────────────────────
+# -- 복사알 ----------------------------------------------------------
 
 def ability_copy_ability(user: Egg, target: Egg) -> tuple[bool, str]:
     ok, msg = _check_uses(user)
@@ -112,13 +111,13 @@ def use_copied_ability(user: Egg) -> tuple[bool, str, str | None]:
     return False, "저장된 능력/위력이 없습니다. 먼저 복사하세요.", None
 
 
-# ── 분신알 ───────────────────────────────────────────────────────
+# -- 분신알 ----------------------------------------------------------
 
 def ability_clone(user: Egg, eggs: list[Egg]) -> tuple[bool, str]:
     ok, msg = _check_uses(user)
     if not ok:
         return False, msg
-    offsets = [(70,0),(-70,0),(0,70),(0,-70)]
+    offsets = [(70, 0), (-70, 0), (0, 70), (0, -70)]
     random.shuffle(offsets)
     clone = None
     for dx, dy in offsets:
@@ -126,11 +125,11 @@ def ability_clone(user: Egg, eggs: list[Egg]) -> tuple[bool, str]:
         if (BOARD_LEFT + EGG_RADIUS < cx < BOARD_RIGHT - EGG_RADIUS and
                 BOARD_TOP + EGG_RADIUS < cy < BOARD_BOTTOM - EGG_RADIUS and
                 not pos_occupied(cx, cy, eggs, [])):
-            # 분신 외형은 원본 타입을 따라감 (복사알이 분신 소환하면 분신도 복사알처럼 보임)
+            # 분신 외형은 원본 타입을 따라감
             clone_type = user.type if user.type != "clone" else "clone"
             clone = Egg(cx, cy, user.owner, clone_type)
-            clone.is_clone = True
-            clone.uses_left = 0   # 분신은 능력 사용 불가
+            clone.is_clone  = True
+            clone.uses_left = 0
             clone.max_uses  = 0
             break
     if clone is None:
@@ -143,10 +142,9 @@ def ability_clone(user: Egg, eggs: list[Egg]) -> tuple[bool, str]:
     return True, f"분신 소환! (남은 횟수: {user.uses_left}/{user.max_uses})"
 
 
-# ── 폭탄알 지뢰 ─────────────────────────────────────────────────
+# -- 폭탄알 지뢰 -----------------------------------------------------
 
-# 최대 발사력: MAX_LAUNCH_DIST * LAUNCH_POWER
-_MAX_LAUNCH_SPD = MAX_LAUNCH_DIST * LAUNCH_POWER   # ≈ 22.4
+_MAX_LAUNCH_SPD = MAX_LAUNCH_DIST * LAUNCH_POWER   # ~22.4
 
 def ability_bomb(user: Egg, tx: float, ty: float,
                  eggs: list[Egg], barriers: list[Barrier],
@@ -167,11 +165,11 @@ def ability_bomb(user: Egg, tx: float, ty: float,
 def explode_mine(mine: Mine, eggs: list[Egg]) -> list[Egg]:
     """
     폭탄알 지뢰 폭발: 파괴 없음.
-    폭발 반경 내 모든 알(아군 포함 광역)을 최대발사력 절반 세기로 날림.
+    폭발 반경 내 모든 알(아군 포함 광역)을 최대발사력 1.5배 세기로 날림.
     날리는 방향: 지뢰 중심에서 바깥쪽으로.
     """
-    pushed = []
-    blast_spd = _MAX_LAUNCH_SPD * 1.5   # 최대 발사력의 1.5배 (확실히 날아가게)
+    pushed    = []
+    blast_spd = _MAX_LAUNCH_SPD * 1.5
 
     for egg in eggs:
         if not egg.active:
@@ -181,13 +179,10 @@ def explode_mine(mine: Mine, eggs: list[Egg]) -> list[Egg]:
         dist = math.hypot(dx, dy)
         if dist < mine.BLAST_RADIUS:
             if dist < 0.1:
-                # 지뢰와 거의 같은 위치면 랜덤 방향으로 날림
-                import random
-                angle = random.uniform(0, math.pi * 2)
+                angle  = random.uniform(0, math.pi * 2)
                 dx, dy = math.cos(angle), math.sin(angle)
                 dist   = 1.0
-            nx, ny = dx / dist, dy / dist   # 지뢰→알 방향 (바깥쪽)
-            # 거리에 따라 감쇠: 중심일수록 강하게
+            nx, ny = dx / dist, dy / dist
             ratio  = (mine.BLAST_RADIUS - dist) / mine.BLAST_RADIUS
             force  = blast_spd * ratio
             egg.vx += nx * force
@@ -197,7 +192,7 @@ def explode_mine(mine: Mine, eggs: list[Egg]) -> list[Egg]:
     return pushed
 
 
-# ── 투명알 ───────────────────────────────────────────────────────
+# -- 투명알 ----------------------------------------------------------
 
 def ability_invisible(user: Egg) -> tuple[bool, str]:
     ok, msg = _check_uses(user)
@@ -208,7 +203,7 @@ def ability_invisible(user: Egg) -> tuple[bool, str]:
     return True, f"{state} (남은 횟수: {user.uses_left}/{user.max_uses})"
 
 
-# ── 염력알 ───────────────────────────────────────────────────────
+# -- 염력알 ----------------------------------------------------------
 
 def ability_psycho(user: Egg, target: Egg, eggs: list[Egg]) -> tuple[bool, str]:
     if user.uses_left <= 0:
@@ -226,7 +221,7 @@ def ability_psycho(user: Egg, target: Egg, eggs: list[Egg]) -> tuple[bool, str]:
     if allies:
         victim = random.choice(allies)
         victim.active = False
-        msg += f" 반동 — 아군 알(id={victim.id}) 파괴."
+        msg += f" 반동 - 아군 알(id={victim.id}) 파괴."
 
     user.active    = False
     user.uses_left = 0
@@ -234,17 +229,17 @@ def ability_psycho(user: Egg, target: Egg, eggs: list[Egg]) -> tuple[bool, str]:
     return True, msg
 
 
-# ── 얼음알 ───────────────────────────────────────────────────────
+# -- 얼음알 ----------------------------------------------------------
 
 def ability_ice(user: Egg, target: Egg) -> tuple[bool, str]:
     ok, msg = _check_uses(user)
     if not ok:
         return False, msg
     target.icy = True
-    return True, f"알(id={target.id}) 슬립! (남은 횟수: {user.uses_left}/{user.max_uses})"
+    return True, f"알(id={target.id}) 슬립 상태! (남은 횟수: {user.uses_left}/{user.max_uses})"
 
 
-# ── 자석알 ───────────────────────────────────────────────────────
+# -- 자석알 ----------------------------------------------------------
 
 def ability_magnet(user: Egg, target_a: Egg, target_b: Egg) -> tuple[bool, str]:
     ok, msg = _check_uses(user)
@@ -256,7 +251,7 @@ def ability_magnet(user: Egg, target_a: Egg, target_b: Egg) -> tuple[bool, str]:
     target_a.magnet_pair = target_b
     target_b.magnet_pair = target_a
     _apply_initial_pull(target_a, target_b)
-    return True, (f"알 {target_a.id}↔{target_b.id} 자석 연결! "
+    return True, (f"알 {target_a.id}<->{target_b.id} 자석 연결! "
                   f"(남은 횟수: {user.uses_left}/{user.max_uses})")
 
 
@@ -265,5 +260,7 @@ def _apply_initial_pull(a: Egg, b: Egg, impulse: float = 3.0):
     dy   = b.y - a.y
     dist = max(math.hypot(dx, dy), 1.0)
     nx, ny = dx / dist, dy / dist
-    a.vx += nx * impulse;  a.vy += ny * impulse
-    b.vx -= nx * impulse;  b.vy -= ny * impulse
+    a.vx += nx * impulse
+    a.vy += ny * impulse
+    b.vx -= nx * impulse
+    b.vy -= ny * impulse

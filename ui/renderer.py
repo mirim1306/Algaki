@@ -1,11 +1,11 @@
-"""pygame 화면 렌더러 — UI 겹침 없이 레이아웃 정비."""
+"""pygame 화면 렌더러."""
 from __future__ import annotations
 import math, pygame
 from core.constants import *
 from core.egg import Egg, Barrier, Mine
 from core.game_state import GameState
 
-# ── 색상 헬퍼 ─────────────────────────────────────────────────────
+# --   -----------------------------------------------------
 def _dk(color, f=0.55):
     return tuple(int(c * f) for c in color[:3])
 
@@ -17,11 +17,11 @@ def _blend(c1, c2, t=0.5):
 
 
 class Renderer:
-    # UI 존 높이 상수
-    TOP_BAR_H   = 56   # 보드 위 → 턴/모드 표시
-    SIDE_PAD    = 8    # 좌우 패널 내부 여백
-    BTN_ZONE_H  = 56   # 보드 아래 버튼 영역
-    LOG_H       = 60   # 로그 영역
+    # UI
+    TOP_BAR_H   = 56   #   → /
+    SIDE_PAD    = 8    #
+    BTN_ZONE_H  = 56   #
+    LOG_H       = 60   #
 
     def __init__(self, screen: pygame.Surface):
         self.screen = screen
@@ -52,7 +52,7 @@ class Renderer:
         self._BB = _c.BOARD_BOTTOM
         self._MX = _c.MID_X
 
-    # ── 파티클 ────────────────────────────────────────────────────
+    # --  ----------------------------------------------------
     def spawn_particles(self, x, y, color, count=10):
         import random
         for _ in range(count):
@@ -82,7 +82,7 @@ class Renderer:
             pygame.draw.circle(self.screen, p["color"],
                                (int(p["x"]), int(p["y"])), p["r"])
 
-    # ── 메인 렌더 ─────────────────────────────────────────────────
+    # --   -------------------------------------------------
     def render(self, gs: GameState):
         self._tick += 1
         self._snap()
@@ -101,7 +101,7 @@ class Renderer:
         if gs.phase == STATE_GAMEOVER:
             self._draw_gameover(gs)
 
-    # ── 보드 ──────────────────────────────────────────────────────
+    # --  ------------------------------------------------------
     def _draw_board(self, gs: GameState):
         from core.map_system import MAP_DEFS
         md = MAP_DEFS[gs.map_index]
@@ -113,18 +113,18 @@ class Renderer:
                                  self._BB - self._BT)
         pygame.draw.rect(self.screen, bg_col, board_rect, border_radius=6)
         pygame.draw.rect(self.screen, bord_col, board_rect, 2, border_radius=6)
-        # 중앙선
+        #
         pygame.draw.line(self.screen, bord_col,
                          (self._MX, self._BT), (self._MX, self._BB), 1)
 
-    # ── 맵 고정 방벽 ──────────────────────────────────────────────
+    # --    ----------------------------------------------
     def _draw_map_barriers(self, gs: GameState):
         for b in gs.map_obj.barriers:
             if not b.active:
                 continue
             self._draw_barrier_shape(b, static=True)
 
-    # ── 사용자 방벽 ───────────────────────────────────────────────
+    # --   -----------------------------------------------
     def _draw_barriers(self, gs: GameState):
         for b in gs.barriers:
             if not b.active:
@@ -132,7 +132,7 @@ class Renderer:
             self._draw_barrier_shape(b, static=False)
 
 
-    # ── 맵 특수 오브젝트 ──────────────────────────────────────────
+    # --    ------------------------------------------
     def _draw_map_specials(self, gs: GameState):
         self._draw_map_bombs(gs)
         self._draw_tires(gs)
@@ -143,14 +143,14 @@ class Renderer:
             if not bomb.active:
                 continue
             cx, cy = int(bomb.x), int(bomb.y)
-            # 외곽 글로우
+            #
             pygame.draw.circle(self.screen, (100, 40, 10), (cx, cy), bomb.r + 5)
             pygame.draw.circle(self.screen, (220, 80, 30), (cx, cy), bomb.r)
             pygame.draw.circle(self.screen, (255, 150, 60), (cx, cy), bomb.r - 4)
-            # 심지
+            #
             pygame.draw.line(self.screen, (200, 200, 80),
                              (cx, cy - bomb.r), (cx + 5, cy - bomb.r - 8), 2)
-            txt = self.font_sm.render("💣", True, C_WHITE)
+            txt = self.font_sm.render("[봉]", True, C_WHITE)
             self.screen.blit(txt, txt.get_rect(center=(cx, cy)))
 
     def _draw_tires(self, gs: GameState):
@@ -158,18 +158,18 @@ class Renderer:
             if not tire.active:
                 continue
             cx, cy = int(tire.x), int(tire.y)
-            # 타이어 외곽 (검은 원)
+            #   ( )
             pygame.draw.circle(self.screen, (20, 20, 20), (cx, cy), tire.r)
-            # 타이어 안쪽 (갈색 원)
+            #   ( )
             pygame.draw.circle(self.screen, (80, 55, 20), (cx, cy), tire.r - 6)
-            # 중심 허브
+            #
             pygame.draw.circle(self.screen, (140, 120, 60), (cx, cy), 8)
-            # 수명 표시 (남은 타격)
+            #   ( )
             remain = tire.MAX_HITS - tire.hits
             col = (100, 255, 100) if remain > 6 else (255, 200, 60) if remain > 3 else (255, 80, 80)
             txt = self.font_sm.render(f"{remain}", True, col)
             self.screen.blit(txt, txt.get_rect(center=(cx, cy - tire.r - 10)))
-            txt2 = self.font_sm.render("타이어", True, (180, 160, 80))
+            txt2 = self.font_sm.render("", True, (180, 160, 80))
             self.screen.blit(txt2, txt2.get_rect(center=(cx, cy)))
 
     def _draw_drains(self, gs: GameState):
@@ -178,19 +178,19 @@ class Renderer:
             if not drain.active:
                 continue
             cx, cy = int(drain.x), int(drain.y)
-            # 나선형 하수구 효과
+            #
             t = self._tick * 0.05
             pygame.draw.circle(self.screen, (10, 30, 35), (cx, cy), drain.r)
             pygame.draw.circle(self.screen, (20, 80, 90), (cx, cy), drain.r, 2)
-            # 나선 선
+            #
             for i in range(4):
                 angle = t + i * math.pi / 2
                 x2 = cx + int(math.cos(angle) * (drain.r - 4))
                 y2 = cy + int(math.sin(angle) * (drain.r - 4))
                 pygame.draw.line(self.screen, (40, 160, 180), (cx, cy), (x2, y2), 2)
-            # 번호 (대각선 짝 표시)
+            #  (  )
             partner = drain.partner_idx
-            txt = self.font_sm.render(f"↔{partner}", True, (80, 200, 220))
+            txt = self.font_sm.render(f"{partner}", True, (80, 200, 220))
             self.screen.blit(txt, txt.get_rect(center=(cx, cy)))
 
     def _draw_barrier_shape(self, b: Barrier, static: bool):
@@ -202,11 +202,11 @@ class Renderer:
         fill = _dk(col, 0.45)
         pygame.draw.polygon(self.screen, fill, pts)
         pygame.draw.polygon(self.screen, col, pts, 2)
-        sym = "壁" if not static else "█"
+        sym = "" if not static else ""
         txt = self.font_sm.render(sym, True, col)
         self.screen.blit(txt, txt.get_rect(center=(cx, cy)))
 
-    # ── 지뢰 ──────────────────────────────────────────────────────
+    # --  ------------------------------------------------------
     def _draw_mines(self, gs: GameState):
         for mine in gs.mines:
             if not mine.active:
@@ -221,10 +221,10 @@ class Renderer:
                 x2 = cx + int(math.cos(rad) * (mine.r + 5))
                 y2 = cy + int(math.sin(rad) * (mine.r + 5))
                 pygame.draw.line(self.screen, col, (cx, cy), (x2, y2), 2)
-            txt = self.font_sm.render("💣", True, C_WHITE)
+            txt = self.font_sm.render("[봉]", True, C_WHITE)
             self.screen.blit(txt, txt.get_rect(center=(cx, cy)))
 
-    # ── 자석 선 ───────────────────────────────────────────────────
+    # --   ---------------------------------------------------
     def _draw_magnet_lines(self, gs: GameState):
         drawn = set()
         for egg in gs.eggs:
@@ -237,7 +237,7 @@ class Renderer:
                                  (int(egg.x), int(egg.y)),
                                  (int(egg.magnet_pair.x), int(egg.magnet_pair.y)), 2)
 
-    # ── 알 ────────────────────────────────────────────────────────
+    # --  --------------------------------------------------------
     def _draw_eggs(self, gs: GameState):
         for egg in gs.eggs:
             if egg.active:
@@ -249,7 +249,7 @@ class Renderer:
         col       = egg.base_color
         owner_col = C_P1 if egg.owner == 0 else C_P2
 
-        # ── 투명 알 ──
+        # --   --
         if egg.invisible:
             is_own = (egg.owner == gs.turn)
             if is_own:
@@ -258,59 +258,59 @@ class Renderer:
                 ow_c = C_P1 if egg.owner == 0 else C_P2
                 pygame.draw.circle(surf, (*ow_c, 50), (egg.r+2, egg.r+2), egg.r+2, 2)
                 self.screen.blit(surf, (cx-egg.r-2, cy-egg.r-2))
-                icon = self.font_sm.render("👻", True, (200, 200, 255))
+                icon = self.font_sm.render("유령", True, (200, 200, 255))
                 self.screen.blit(icon, (cx-7, cy-7))
             return
 
-        # ── 선택 글로우 ──
+        # --   --
         if selected:
             pygame.draw.circle(self.screen, _lt(col, 2.0), (cx, cy), egg.r+7)
 
-        # ── 주인 테두리 ──
+        # --   --
         pygame.draw.circle(self.screen, owner_col, (cx, cy), egg.r+3)
 
-        # ── 봉인 회색 ──
+        # --   --
         draw_col = (85, 88, 105) if egg.sealed else col
         pygame.draw.circle(self.screen, _dk(draw_col, 0.5), (cx, cy), egg.r)
         pygame.draw.circle(self.screen, draw_col, (cx, cy), egg.r-2)
 
-        # ── 얼음 오버레이 ──
+        # --   --
         if egg.icy:
             ice = pygame.Surface((egg.r*2, egg.r*2), pygame.SRCALPHA)
             pygame.draw.circle(ice, (100, 220, 255, 80), (egg.r, egg.r), egg.r)
             self.screen.blit(ice, (cx-egg.r, cy-egg.r))
 
-        # ── 복사알 저장 상태 테두리 ──
+        # --     --
         if egg.type == "copy" and egg.copy_mode != "none":
             pulse = abs(math.sin(self._tick * 0.08)) * 0.6 + 0.4
             glow  = tuple(int(c * pulse) for c in (255, 220, 60))
             pygame.draw.circle(self.screen, glow, (cx, cy), egg.r+5, 2)
 
-        # ── 광택 ──
+        # --  --
         pygame.draw.circle(self.screen, _lt(col, 1.6),
                            (cx - egg.r//3, cy - egg.r//3), egg.r//3)
 
-        # ── 타깃 표시 ──
+        # --   --
         if gs.phase == STATE_ABILITY and egg in gs.ability_targets:
             pygame.draw.circle(self.screen, C_HIGHLIGHT, (cx, cy), egg.r+5, 2)
 
-        # ── 이름 ──
+        # --  --
         name = EGG_INFO[egg.type]["name"][:2]
         txt  = self.font_sm.render(name, True, C_WHITE)
         self.screen.blit(txt, txt.get_rect(center=(cx, cy)))
 
-        # ── 상태 아이콘 ──
+        # --   --
         ix, iy = cx + egg.r - 5, cy - egg.r - 2
         if egg.icy:
-            self.screen.blit(self.font_sm.render("❄", True, (100, 230, 255)), (ix, iy))
+            self.screen.blit(self.font_sm.render("얼음", True, (100, 230, 255)), (ix, iy))
             iy += 14
         if egg.sealed:
-            # 봉인 잠금 아이콘 + 잔여 턴
-            seal_txt = self.font_sm.render(f"🔒{egg.seal_turns}", True, (230, 180, 60))
+            #    +
+            seal_txt = self.font_sm.render(f"봉인{egg.seal_turns}", True, (230, 180, 60))
             self.screen.blit(seal_txt, (ix - 6, iy))
             iy += 14
 
-        # 복사알 저장 레이블 (알 아래)
+        #    ( )
         if egg.type == "copy" and egg.copy_mode == "ability" and egg.copied_ability:
             label = EGG_INFO.get(egg.copied_ability, {}).get("name", "?")[:2]
             ct = self.font_sm.render(f"[{label}]", True, (255, 220, 60))
@@ -320,7 +320,7 @@ class Renderer:
             ct = self.font_sm.render(f"[위:{spd:.0f}]", True, (100, 255, 180))
             self.screen.blit(ct, (cx - ct.get_width()//2, cy + egg.r + 2))
 
-    # ── 조준선 ────────────────────────────────────────────────────
+    # --  ----------------------------------------------------
     def _draw_aim(self, gs: GameState):
         if not gs.dragging or gs.selected_egg is None:
             return
@@ -347,18 +347,18 @@ class Renderer:
         end_y = int(ey + ny*90*scale)
         pygame.draw.circle(self.screen, C_AIM_LINE, (end_x, end_y), 5)
         pct = int(scale * 100)
-        txt = self.font_sm.render(f"발사 위력: {pct}%", True, C_AIM_LINE)
+        txt = self.font_sm.render(f"발사력: {pct}%", True, C_AIM_LINE)
         self.screen.blit(txt, (end_x+8, end_y-10))
 
-    # ── HUD ───────────────────────────────────────────────────────
-    # 레이아웃 (겹침 없음):
-    #  [0 ~ BT-TOP_BAR_H-4]  : 상단 여백
-    #  [BT-TOP_BAR_H .. BT]  : 턴/모드 표시 (TOP_BAR_H px)
-    #  [BT .. BB]             : 게임 보드
-    #  [BB+2 .. BB+BTN_ZONE_H]: 버튼 존 (input_handler가 그림)
-    #  [BB+BTN_ZONE_H+4 ..]   : 로그 존 (LOG_H px)
-    #  [좌측 0..BL]           : P1 패널
-    #  [우측 BR..w]           : P2 패널
+    # -- HUD -------------------------------------------------------
+    #  ( ):
+    #  [0 ~ BT-TOP_BAR_H-4]  :
+    #  [BT-TOP_BAR_H .. BT]  : /  (TOP_BAR_H px)
+    #  [BT .. BB]             :
+    #  [BB+2 .. BB+BTN_ZONE_H]:   (input_handler )
+    #  [BB+BTN_ZONE_H+4 ..]   :   (LOG_H px)
+    #  [ 0..BL]           : P1
+    #  [ BR..w]           : P2
 
     def _draw_hud(self, gs: GameState):
         self._draw_top_bar(gs)
@@ -371,34 +371,34 @@ class Renderer:
         bar_y = self._BT - self.TOP_BAR_H
         bar_h = self.TOP_BAR_H - 2
 
-        # 배경
+        #
         pygame.draw.rect(self.screen, C_UI_BG,
                          (self._BL, bar_y, self._BR - self._BL, bar_h),
                          border_radius=6)
 
-        # 턴
+        #
         turn_name = "P1 (파랑)" if gs.turn == 0 else "P2 (빨강)"
         turn_col  = C_P1        if gs.turn == 0 else C_P2
-        txt = self.font_lg.render(f"◈ {turn_name} 차례", True, turn_col)
+        txt = self.font_lg.render(f"{turn_name} 차례", True, turn_col)
         self.screen.blit(txt, txt.get_rect(center=(cx, bar_y + 16)))
 
-        # 모드
+        #
         if gs.phase == STATE_ABILITY and gs.ability_egg:
             egg  = gs.ability_egg
             desc = EGG_INFO.get(egg.type, {}).get("name", "")
-            # 복사알 저장 상태 추가 표시
+            #
             extra = ""
             if egg.type == "copy":
                 if egg.copy_mode == "ability" and egg.copied_ability:
                     aname = EGG_INFO.get(egg.copied_ability, {}).get("name", "?")
-                    extra = f"  |  저장됨: [{aname}능력]"
+                    extra = f"  |  : [{aname}]"
                 elif egg.copy_mode == "power" and egg.copied_vx is not None:
                     import math as _m
                     spd = _m.hypot(egg.copied_vx, egg.copied_vy)
-                    extra = f"  |  저장됨: [위력{spd:.0f}]"
+                    extra = f"  |  : [{spd:.0f}]"
                 else:
-                    extra = "  |  저장 없음"
-            mode_t = self.font_md.render(f"능력 사용 중: {desc}{extra}", True, C_HIGHLIGHT)
+                    extra = "모드: 발사 | 능력"
+            mode_t = self.font_md.render(f"능력: {desc}{extra}", True, C_HIGHLIGHT)
         elif gs.action_mode == ACTION_SHOOT:
             mode_t = self.font_md.render("모드: 발사", True, C_GRAY)
         else:
@@ -419,18 +419,18 @@ class Renderer:
 
         alive = [e for e in gs.eggs if e.active and e.owner == owner]
 
-        # 패널 배경
+        #
         panel_h = self._BB - self._BT
         pygame.draw.rect(self.screen, C_UI_BG,
                          (px, py, panel_w, panel_h), border_radius=6)
         pygame.draw.rect(self.screen, col,
                          (px, py, panel_w, panel_h), 1, border_radius=6)
 
-        # 헤더
-        hdr = self.font_md.render(f"{label}  {len(alive)}개", True, col)
+        #
+        hdr = self.font_md.render(f"{label}: {len(alive)}개", True, col)
         self.screen.blit(hdr, (px+6, py+6))
 
-        # 알 목록 (줄 간격 조절로 오버플로 방지)
+        #   (    )
         max_lines = max(1, (panel_h - 30) // 22)
         y = py + 28
         for egg in alive[:max_lines]:
@@ -439,23 +439,23 @@ class Renderer:
             row_rect = pygame.Rect(px+2, y, panel_w-4, 20)
             pygame.draw.rect(self.screen, bg, row_rect, border_radius=3)
 
-            # 알 색 점
+            #
             ec = egg.base_color
             pygame.draw.circle(self.screen, ec, (px+12, y+10), 6)
 
-            flags = ("🔒" if egg.sealed else "") + ("❄" if egg.icy else "")
+            flags = ("[]" if egg.sealed else "") + ("[]" if egg.icy else "")
             info  = EGG_INFO[egg.type]
             nm_col = C_HIGHLIGHT if is_sel else C_WHITE
             nm = self.font_sm.render(f"{flags}{info['name']}", True, nm_col)
             self.screen.blit(nm, (px+22, y+3))
-            # 능력 사용 횟수
+            #
             if egg.max_uses > 0:
                 uses_col = (100,255,100) if egg.uses_left > 0 else (180,60,60)
                 ut = self.font_sm.render(f"{egg.uses_left}/{egg.max_uses}", True, uses_col)
                 self.screen.blit(ut, (px + panel_w - ut.get_width() - 4, y+3))
             y += 22
 
-        # 초과 알 수 표시
+        #
         extra = len(alive) - max_lines
         if extra > 0:
             et = self.font_sm.render(f"+{extra}개 더", True, C_GRAY)
@@ -483,7 +483,7 @@ class Renderer:
                                       (brightness, brightness, brightness))
             self.screen.blit(txt, (log_x+8, log_y+4+i*18))
 
-    # ── 게임오버 ──────────────────────────────────────────────────
+    # --  --------------------------------------------------
     def _draw_gameover(self, gs: GameState):
         ov = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
         ov.fill((0, 0, 0, 160))
@@ -492,6 +492,6 @@ class Renderer:
         winner  = "P1 (파랑)" if gs.winner == 0 else "P2 (빨강)"
         col     = C_P1         if gs.winner == 0 else C_P2
         txt1 = self.font_xl.render(f"{winner} 승리!", True, col)
-        txt2 = self.font_md.render("R 키 → 재시작  |  ESC → 홈 화면", True, C_GRAY)
+        txt2 = self.font_md.render("R: 재시작  |  ESC: 메뉴", True, C_GRAY)
         self.screen.blit(txt1, txt1.get_rect(center=(self.w//2, self.h//2-30)))
         self.screen.blit(txt2, txt2.get_rect(center=(self.w//2, self.h//2+30)))

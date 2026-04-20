@@ -72,9 +72,9 @@ def apply_magnet(egg: Egg):
 
 
 def _is_out_of_board(egg: Egg) -> bool:
-    """알 중심이 보드 경계를 넘으면 파괴 (반 이상 나가면 파괴)."""
+    """알 중심이 보드 경계를 넘으면 파괴."""
     import core.constants as _c
-    # 중심이 경계를 넘는 순간 = 절반 이상 나간 것
+    #     =
     return (egg.x < _c.BOARD_LEFT   or
             egg.x > _c.BOARD_RIGHT  or
             egg.y < _c.BOARD_TOP    or
@@ -84,8 +84,8 @@ def _is_out_of_board(egg: Egg) -> bool:
 def step_physics(eggs: list[Egg], barriers: list[Barrier], mines: list[Mine],
                  map_objects=None):
     """
-    한 프레임 물리.
-    반환: (triggered_mines, map_bomb_events)
+      .
+    : (triggered_mines, map_bomb_events)
     """
     triggered:       list[Mine]            = []
     map_bomb_events: list[tuple[int, int]] = []
@@ -100,7 +100,7 @@ def step_physics(eggs: list[Egg], barriers: list[Barrier], mines: list[Mine],
         drains    = [d for d in map_objects.drains     if d.active]
         all_barriers.extend(map_objects.barriers)
 
-    # ── 이동 & 벽 이탈 ─────────────────────────────────────────
+    # --  &   -----------------------------------------
     for egg in eggs:
         if not egg.active or not egg.is_moving():
             continue
@@ -112,7 +112,7 @@ def step_physics(eggs: list[Egg], barriers: list[Barrier], mines: list[Mine],
             egg.active = False
             egg.vx = egg.vy = 0.0
 
-    # ── 알 ↔ 알 충돌 ───────────────────────────────────────────
+    # --     -------------------------------------------
     active = [e for e in eggs if e.active]
     for i in range(len(active)):
         for j in range(i + 1, len(active)):
@@ -120,13 +120,13 @@ def step_physics(eggs: list[Egg], barriers: list[Barrier], mines: list[Mine],
             if a.overlaps(b):
                 resolve_egg_collision(a, b)
 
-    # ── 알 ↔ 방벽 충돌 ─────────────────────────────────────────
+    # --     -----------------------------------------
     for egg in [e for e in eggs if e.active]:
         for barrier in all_barriers:
             if barrier.active and barrier.overlaps_egg(egg):
                 resolve_barrier_collision(egg, barrier)
 
-    # ── 알 ↔ 타이어 ─────────────────────────────────────────────
+    # --    ---------------------------------------------
     for egg in [e for e in eggs if e.active]:
         for tire in tires:
             if not tire.active:
@@ -145,7 +145,7 @@ def step_physics(eggs: list[Egg], barriers: list[Barrier], mines: list[Mine],
                     egg.vy -= 2 * dot * ny * (RESTITUTION * tire.BOOST)
                 tire.register_hit()
 
-    # ── 알 ↔ 맵 폭탄 (연쇄 없음, 각 폭탄 독립) ─────────────────
+    # --     ( ,   ) -----------------
     if map_bombs:
         from core.map_system import explode_map_bomb
         for bomb in list(map_bombs):
@@ -155,48 +155,48 @@ def step_physics(eggs: list[Egg], barriers: list[Barrier], mines: list[Mine],
                 if bomb.overlaps_egg(egg):
                     killed, pushed = explode_map_bomb(bomb, eggs)
                     map_bomb_events.append((len(killed), len(pushed)))
-                    break   # 이 폭탄은 처리 완료, 다음 폭탄으로
+                    break   #    ,
 
-    # ── 하수구 처리 — 쿨다운으로 재진입 방지 ──────────────────
+    # --   —    ------------------
     if drains:
         for egg in [e for e in eggs if e.active]:
-            # drain_cooldown: 순간이동 후 재진입 방지 카운터
+            # drain_cooldown:
             if not hasattr(egg, 'drain_cooldown'):
                 egg.drain_cooldown = 0
             if egg.drain_cooldown > 0:
                 egg.drain_cooldown -= 1
-                continue   # 쿨다운 중이면 하수구 무시
+                continue   #
             for drain in drains:
                 if not drain.active:
                     continue
                 if drain.in_range(egg):
                     partner = drains[drain.partner_idx]
                     if partner.active:
-                        # 파트너 구멍 밖으로 살짝 밀어서 배출
+                        #
                         dx_out = egg.vx if abs(egg.vx) > 0.1 else 1.0
                         dy_out = egg.vy if abs(egg.vy) > 0.1 else 0.0
                         dist_out = max(math.hypot(dx_out, dy_out), 0.1)
                         nx_out = dx_out / dist_out
                         ny_out = dy_out / dist_out
-                        # partner drain 경계 바깥 (SUCK_DIST + egg.r + 5)에 배치
+                        # partner drain   (SUCK_DIST + egg.r + 5)
                         clearance = drain.SUCK_DIST + egg.r + 5
                         egg.x = partner.x + nx_out * clearance
                         egg.y = partner.y + ny_out * clearance
-                        # 쿨다운 설정: 충분히 나올 시간
-                        egg.drain_cooldown = 30   # 약 0.5초(60fps 기준)
+                        #  :
+                        egg.drain_cooldown = 30   #  0.5(60fps )
                     break
 
-    # ── 폭탄알 지뢰 발동 ───────────────────────────────────────
+    # --    ---------------------------------------
     _MAX_BLAST_SPD = MAX_LAUNCH_DIST * LAUNCH_POWER * 1.5
     for mine in mines:
         if not mine.active or mine.triggered:
             continue
         for egg in [e for e in eggs if e.active]:
-            # 적 알만 감지 (트리거)
+            #    ()
             if egg.owner != mine.owner and mine.in_blast(egg):
                 mine.triggered = True
                 triggered.append(mine)
-                # 즉시 모든 알(트리거 알 포함) 날리기
+                #   (  )
                 for target in [e for e in eggs if e.active]:
                     dx2 = target.x - mine.x
                     dy2 = target.y - mine.y

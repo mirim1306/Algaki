@@ -39,9 +39,9 @@ class Button:
 
 def make_action_buttons() -> dict[str, Button]:
     """
-    버튼 배치 (Renderer.BTN_ZONE_H=56 기준):
-      발사/능력 버튼: BOARD_BOTTOM+4 ~ +30  (26px 높이)
-      확인/취소 버튼: BOARD_BOTTOM+32 ~ +54 (22px 높이)
+      (Renderer.BTN_ZONE_H=56 ):
+      / : BOARD_BOTTOM+4 ~ +30  (26px )
+      / : BOARD_BOTTOM+32 ~ +54 (22px )
     """
     import core.constants as _c
     bb   = _c.BOARD_BOTTOM
@@ -53,6 +53,6 @@ def make_action_buttons() -> dict[str, Button]:
     return {
         "shoot":   Button(cx - bw1 - gap, bb + 4,  bw1, bh1, "발사 모드"),
         "ability": Button(cx + gap,        bb + 4,  bw1, bh1, "능력 사용"),
-        "confirm": Button(cx - bw2 - gap,  bb + 32, bw2, bh2, "확인/발동"),
+        "confirm": Button(cx - bw2 - gap,  bb + 32, bw2, bh2, "/"),
         "cancel":  Button(cx + gap,        bb + 32, bw2, bh2, "취  소"),
     }

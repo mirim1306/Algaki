@@ -1,6 +1,3 @@
-"""
-홈 화면: 시작 / 설명 / 설정 / 종료 버튼
-"""
 from __future__ import annotations
 import math, pygame
 from core.constants import *
@@ -14,19 +11,19 @@ def _mk_font(name: str, size: int, bold=False):
 
 
 class MenuScreen:
-    """메인 홈 화면."""
+    """홈 화면."""
 
     BTN_W, BTN_H = 280, 60
     BTN_GAP = 18
 
     BUTTONS = [
-        ("start",    "▶  게임 시작",   (0.36, 0.70, 0.10, 0.10)),
-        ("howto",    "📖  게임 설명",   (0.36, 0.70, 0.10, 0.10)),
-        ("settings", "⚙  설  정",      (0.36, 0.70, 0.10, 0.10)),
-        ("quit",     "✕  종  료",      (0.36, 0.70, 0.10, 0.10)),
+        ("start",    "> 게임 시작",    (0.36, 0.70, 0.10, 0.10)),
+        ("howto",    "  게임 설명",    (0.36, 0.70, 0.10, 0.10)),
+        ("settings", "  설  정",       (0.36, 0.70, 0.10, 0.10)),
+        ("quit",     "X 종  료",       (0.36, 0.70, 0.10, 0.10)),
     ]
 
-    # 팔레트
+    #
     C_BG1   = (8,  12, 28)
     C_BG2   = (14, 20, 50)
     C_GLOW  = (60, 110, 255)
@@ -57,7 +54,7 @@ class MenuScreen:
         self._build_buttons()
         self.hovered: str | None = None
 
-        # 별 (배경 파티클)
+        #  ( )
         import random
         self.stars = [
             (random.randint(0, self.w), random.randint(0, self.h),
@@ -78,7 +75,7 @@ class MenuScreen:
             self.rects[key] = rect
 
     def handle_event(self, event: pygame.event.Event) -> str | None:
-        """반환값: 'start' | 'howto' | 'settings' | 'quit' | None"""
+        """: 'start' | 'howto' | 'settings' | 'quit' | None"""
         if event.type == pygame.MOUSEMOTION:
             mx, my = event.pos
             self.hovered = None
@@ -96,7 +93,7 @@ class MenuScreen:
         self.tick += 1
         s = self.screen
 
-        # ── 배경 그라데이션 ──
+        # --   --
         for y in range(0, self.h, 3):
             t = y / self.h
             r = int(self.C_BG1[0] * (1 - t) + self.C_BG2[0] * t)
@@ -104,7 +101,7 @@ class MenuScreen:
             b = int(self.C_BG1[2] * (1 - t) + self.C_BG2[2] * t)
             pygame.draw.rect(s, (r, g, b), (0, y, self.w, 3))
 
-        # ── 별 ──
+        # --  --
         for (sx, sy, br, ph) in self.stars:
             alpha = int(120 + 100 * math.sin(self.tick * 0.02 + ph))
             c = int(br * alpha)
@@ -112,7 +109,7 @@ class MenuScreen:
             cb = min(255, c + 30)
             pygame.draw.circle(s, (c, c, cb), (int(sx), int(sy)), 1)
 
-        # ── 중앙 글로우 원 ──
+        # --    --
         cx = self.w // 2
         glow_y = int(self.h * 0.28)
         for r_off in range(120, 0, -8):
@@ -123,19 +120,19 @@ class MenuScreen:
                                (r_off, r_off), r_off)
             s.blit(glow_surf, (cx - r_off, glow_y - r_off))
 
-        # ── 타이틀 ──
+        # --  --
         wobble = math.sin(self.tick * 0.04) * 3
-        title_surf = self.font_title.render("알까기 능력물", True, self.C_TITLE)
-        shadow = self.font_title.render("알까기 능력물", True, (20, 30, 80))
+        title_surf = self.font_title.render(" ", True, self.C_TITLE)
+        shadow = self.font_title.render(" ", True, (20, 30, 80))
         tx = title_surf.get_rect(center=(cx, int(self.h * 0.25))).x
         ty = int(self.h * 0.25) - title_surf.get_height() // 2 + int(wobble)
         s.blit(shadow, (tx + 3, ty + 4))
         s.blit(title_surf, (tx, ty))
 
-        sub = self.font_sub.render("◈  두 플레이어의 알 능력 대결  ◈", True, self.C_SUB)
+        sub = self.font_sub.render("두 플레이어의 알 능력 대결", True, self.C_SUB)
         s.blit(sub, sub.get_rect(center=(cx, int(self.h * 0.37))))
 
-        # ── 버튼 ──
+        # --  --
         for key, label, _ in self.BUTTONS:
             rect = self.rects[key]
             cn, ch, ct = self.BTN_COLORS[key]
@@ -143,11 +140,11 @@ class MenuScreen:
             bg = ch if hov else cn
             border_col = ct
 
-            # 버튼 배경
+            #
             pygame.draw.rect(s, bg, rect, border_radius=12)
             pygame.draw.rect(s, border_col, rect, 2, border_radius=12)
 
-            # 호버 시 내부 글로우
+            #
             if hov:
                 g_surf = pygame.Surface((rect.w, rect.h), pygame.SRCALPHA)
                 pygame.draw.rect(g_surf, (*ct, 25), (0, 0, rect.w, rect.h),
@@ -157,6 +154,6 @@ class MenuScreen:
             txt = self.font_btn.render(label, True, ct if hov else (180, 200, 235))
             s.blit(txt, txt.get_rect(center=rect.center))
 
-        # ── 하단 안내 ──
-        tip = self.font_sm.render("ESC: 종료   |   R: 재시작", True, (60, 80, 130))
+        # --   --
+        tip = self.font_sm.render("ESC: 메뉴   |   R: 재시작", True, (60, 80, 130))
         s.blit(tip, tip.get_rect(center=(cx, self.h - 22)))

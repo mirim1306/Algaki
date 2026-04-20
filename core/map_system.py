@@ -1,9 +1,3 @@
-"""
-맵 0: 기본 맵   — 장애물 없음
-맵 1: 폭탄 맵   — 중앙 5개 폭탄 일렬 (알이 닿으면 폭발, 근거리=파괴, 광역=밀려남)
-맵 2: 타이어 맵 — 모서리4 + 중앙1 타이어 (1.5배 반발, 수명 10회)
-맵 3: 하수구 맵 — 모서리 4개 구멍 (알이 들어가면 대각선 구멍으로 순간이동)
-"""
 from __future__ import annotations
 import math
 import core.constants as _c
@@ -17,21 +11,21 @@ MAP_DEFS = [
 ]
 
 FORMATION_DEFS = [
-    {"name": "─자 포진", "desc": "수평 일렬 배치"},
-    {"name": "W자 포진", "desc": "파형 위볼록"},
-    {"name": "M자 포진", "desc": "파형 아래볼록"},
-    {"name": "U자 포진", "desc": "U형 (양끝 높음)"},
+    {"name": "직선 포진", "desc": "수평 일렬 배치"},
+    {"name": "W자 포진",  "desc": "파형 위볼록"},
+    {"name": "M자 포진",  "desc": "파형 아래볼록"},
+    {"name": "U자 포진",  "desc": "U형 (양끝 높음)"},
 ]
 
 
 class MapBomb:
-    """맵 폭탄 — 알이 닿으면 폭발.
-    KILL_RADIUS 이내 알은 즉시 파괴,
-    BLAST_RADIUS 이내 알은 강하게 밀려남.
-    연쇄 폭발 없음.
+    """  —   .
+    KILL_RADIUS    ,
+    BLAST_RADIUS    .
+      .
     """
-    KILL_RADIUS  = 50   # 즉시 파괴 반경
-    BLAST_RADIUS = 120  # 밀어내기 반경
+    KILL_RADIUS  = 50   #
+    BLAST_RADIUS = 120  #
 
     def __init__(self, x: float, y: float):
         self.x = x
@@ -122,8 +116,8 @@ def _build_drain_map(obj: MapObjects):
 
 def explode_map_bomb(bomb: MapBomb, eggs: list[Egg]) -> tuple[list[Egg], list[Egg]]:
     """
-    맵 폭탄 폭발 처리. 연쇄 폭발 없음 — 각 폭탄은 독립적으로 동작.
-    반환: (파괴된 알 목록, 밀린 알 목록)
+       .    —    .
+    : (  ,   )
     """
     if not bomb.active:
         return [], []
@@ -140,12 +134,12 @@ def explode_map_bomb(bomb: MapBomb, eggs: list[Egg]) -> tuple[list[Egg], list[Eg
         dist = math.hypot(dx, dy)
 
         if dist < bomb.KILL_RADIUS:
-            # 즉시 파괴
+            #
             egg.active = False
             egg.vx = egg.vy = 0.0
             killed.append(egg)
         elif dist < bomb.BLAST_RADIUS:
-            # 밀려남
+            #
             if dist < 0.1:
                 dx, dy, dist = 1.0, 0.0, 1.0
             nx, ny = dx / dist, dy / dist

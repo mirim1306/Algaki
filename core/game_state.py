@@ -59,7 +59,7 @@ class GameState:
         self.ability_targets: list = []
         self.ability_egg:  Egg | None = None
 
-        # 복사알 상태 관리
+        #
         # copy_state: "idle" | "choose" | "stored_ability" | "stored_power"
         self.copy_state: str = "idle"
 
@@ -118,7 +118,7 @@ class GameState:
             if len(self.logs) > 40:
                 self.logs = self.logs[-40:]
 
-    # ── 물리 업데이트 ──────────────────────────────────────────────
+    # --   ----------------------------------------------
     def update_physics(self):
         if not self.simulating:
             return
@@ -128,15 +128,15 @@ class GameState:
         for mine in triggered:
             pushed = explode_mine(mine, self.eggs)
             if pushed:
-                self.log(f"💥 지뢰 폭발! {len(pushed)}개 알 밀림")
+                self.log(f"[폭발] 지뢰! {len(pushed)}개 밀림")
             else:
-                self.log("💥 지뢰 폭발!")
+                self.log("[폭발] 지뢰!")
 
         for n_killed, n_pushed in bomb_events:
             if n_killed > 0:
-                self.log(f"💥 맵 폭탄 폭발! {n_killed}개 파괴, {n_pushed}개 밀림")
+                self.log(f"[폭발] 맵 폭탄! {n_killed}개 파괴, {n_pushed}개 밀림")
             else:
-                self.log(f"💥 맵 폭탄 폭발! {n_pushed}개 밀림")
+                self.log(f"[폭발] 맵 폭탄! {n_pushed}개 밀림")
 
         for egg in self.eggs:
             if not egg.active:
@@ -153,13 +153,13 @@ class GameState:
         p1 = self.my_eggs(1)
         if not p0:
             self.winner = 1; self.phase = STATE_GAMEOVER
-            self.log("🎉 P2 승리!")
+            self.log("P2 승리!")
         elif not p1:
             self.winner = 0; self.phase = STATE_GAMEOVER
-            self.log("🎉 P1 승리!")
+            self.log("P1 승리!")
 
     def _next_turn(self):
-        # 봉인 카운터 먼저 감소 (현재 턴 종료 시점)
+        #     (   )
         tick_seal(self.eggs)
         self.turn = 1 - self.turn
         self.selected_egg    = None
@@ -168,17 +168,17 @@ class GameState:
         self.ability_targets = []
         self.ability_egg     = None
         self.copy_state      = "idle"
-        self.log(f"── {'P1' if self.turn == 0 else 'P2'} 차례 ──")
+        self.log(f"-- {'P1' if self.turn == 0 else 'P2'} 차례 --")
 
-    # ── 발사 ───────────────────────────────────────────────────────
+    # --  -------------------------------------------------------
     def try_shoot(self, egg: Egg, vx: float, vy: float) -> bool:
         if egg.sealed:
-            self.log("❌ 봉인된 알은 발사할 수 없습니다.")
+            self.log("[봉인] 발사 불가")
             return False
         if egg.owner != self.turn:
             return False
 
-        # 복사알 위력 합산
+        #
         if (egg.type == "copy" and egg.copy_mode == "power"
                 and egg.copied_vx is not None):
             vx += egg.copied_vx
@@ -186,48 +186,48 @@ class GameState:
             egg.copied_vx  = None
             egg.copied_vy  = None
             egg.copy_mode  = "none"
-            self.log("📋 복사한 위력 합산 발사!")
+            self.log("[봉인] 발사 불가")
 
         egg.vx = vx
         egg.vy = vy
         self.simulating   = True
         self.selected_egg = None
-        self.log(f"{'P1' if self.turn==0 else 'P2'}: {EGG_INFO[egg.type]['name']} 발사!")
+        self.log(f"{'P1' if self.turn==0 else 'P2'}: {EGG_INFO[egg.type]['name']} !")
         return True
 
-    # ── 능력 시작 ─────────────────────────────────────────────────
+    # --   -------------------------------------------------
     def start_ability(self, egg: Egg) -> tuple[bool, str]:
         if egg.sealed:
             return False, "봉인된 알은 능력을 쓸 수 없습니다."
         if egg.owner != self.turn:
             return False, "자신의 알만 선택하세요."
         if egg.type == "normal":
-            return False, "일반알은 능력이 없습니다."
+            return False, "자신의 알만 선택하세요."
         if egg.is_clone:
             return False, "분신은 발사만 할 수 있습니다."
         if egg.uses_left <= 0:
             return False, f"능력 사용 횟수를 모두 소진했습니다. (0/{egg.max_uses})"
 
-        # ── 투명알: 즉시 발동 ──
+        # -- :   --
         if egg.type == "invisible":
             ok, msg = ability_invisible(egg)
             if ok:
-                # 투명 효과는 턴 유지 (발사도 가능), 능력 UI 열지 않음
+                #     ( ),  UI
                 pass
             return ok, msg
 
-        # ── 분신알: 즉시 발동 후 턴 종료 ──
+        # -- :      --
         if egg.type == "clone":
             ok, msg = ability_clone(egg, self.eggs)
             if ok:
                 self._end_ability_turn()
             return ok, msg
 
-        # ── 복사알: 저장 상태에 따라 분기 ──
+        # -- :     --
         if egg.type == "copy":
             return self._start_copy_ability(egg)
 
-        # 그 외: STATE_ABILITY로 전환
+        #  : STATE_ABILITY
         self.ability_egg     = egg
         self.ability_step    = 0
         self.ability_targets = []
@@ -237,42 +237,42 @@ class GameState:
     def _start_copy_ability(self, egg: Egg) -> tuple[bool, str]:
         """복사알 능력 시작 — 저장 상태에 따라 메뉴 분기."""
         if egg.copy_mode == "ability" and egg.copied_ability:
-            # 저장된 능력 있음 → 사용 or 재복사 선택
+            #    →  or
             self.ability_egg     = egg
             self.ability_step    = 0
             self.ability_targets = []
             self.phase           = STATE_ABILITY
             self.copy_state      = "stored_ability"
             aname = EGG_INFO.get(egg.copied_ability, {}).get("name", "?")
-            return True, (f"복사알: [저장된 능력: {aname}]\n"
-                          f"① 빈 보드 클릭 → 저장 능력 발동  "
-                          f"② 알 클릭 → 새로 복사")
+            return True, (f"복사알: [저장 능력: {aname}]\n"
+                          f"① 빈 보드 클릭 -> 저장 능력 발동  "
+                          f"② 알 클릭 -> 새로 복사")
 
         if egg.copy_mode == "power" and egg.copied_vx is not None:
-            # 저장된 위력 있음 → 발사 시 합산, 또는 재복사
+            # 저장된 위력 있음 -> 발사 시 합산, 또는 재복사
             self.ability_egg     = egg
             self.ability_step    = 0
             self.ability_targets = []
             self.phase           = STATE_ABILITY
             self.copy_state      = "stored_power"
             spd = math.hypot(egg.copied_vx, egg.copied_vy)
-            return True, (f"복사알: [저장된 위력: {spd:.1f}]\n"
+            return True, (f"복사알: [저장 위력: {spd:.1f}]\n"
                           f"① 발사 모드로 전환하면 위력 합산 발사  "
-                          f"② 알 클릭 → 새로 위력 복사")
+                          f"② 알 클릭 -> 새로 위력 복사")
 
-        # 저장 없음 → 복사할 대상 선택
+        # 저장 없음 -> 복사할 대상 선택
         self.ability_egg     = egg
         self.ability_step    = 0
         self.ability_targets = []
         self.phase           = STATE_ABILITY
         self.copy_state      = "choose"
-        remain = f"[{egg.uses_left}/{egg.max_uses}회]"
+        remain = f"[{egg.uses_left}/{egg.max_uses}]"
         return True, (f"복사알 {remain}: 적 알=능력 복사 / 아군·적 알=위력 복사")
 
-    # ── 능력 프롬프트 ─────────────────────────────────────────────
+    # --   ---------------------------------------------
     def _ability_prompt(self, egg: Egg) -> str:
         t      = egg.type
-        remain = f"[{egg.uses_left}/{egg.max_uses}회]"
+        remain = f"[{egg.uses_left}/{egg.max_uses}]"
         prompts = {
             "barrier":  f"방벽알 {remain}: 빈 위치 클릭",
             "seal":     f"봉인알 {remain}: 봉인할 알 클릭",
@@ -285,19 +285,19 @@ class GameState:
             return f"자석알 {remain}: {'첫' if step==0 else '두'} 번째 알 클릭"
         return prompts.get(t, "능력 발동 중...")
 
-    # ── 능력 클릭 (알 대상) ───────────────────────────────────────
+    # --   ( ) ---------------------------------------
     def handle_ability_click_egg(self, clicked: Egg) -> tuple[bool, str]:
         egg = self.ability_egg
         if egg is None:
-            return False, "능력 알이 없습니다."
+            return False, "자신의 알만 선택하세요."
 
-        # 투명 알은 적의 능력 대상 불가
+        #
         if clicked.invisible and clicked.owner != self.turn:
             return False, "투명 상태의 알에는 능력을 사용할 수 없습니다."
 
         t = egg.type
 
-        # ── 복사알 처리 ──
+        # --   --
         if t == "copy":
             return self._handle_copy_click_egg(egg, clicked)
 
@@ -308,7 +308,7 @@ class GameState:
 
         if t == "psycho":
             if clicked.owner == self.turn:
-                return False, "염력은 적 알에만 사용할 수 있습니다."
+                return False, "봉인된 알은 능력을 쓸 수 없습니다."
             ok, msg = ability_psycho(egg, clicked, self.eggs)
             if ok: self._end_ability_turn()
             return ok, msg
@@ -332,20 +332,20 @@ class GameState:
             self.ability_step = 1
             return True, self._ability_prompt(egg)
 
-        return False, "해당 능력은 알 클릭이 필요하지 않습니다."
+        return False, "봉인된 알은 능력을 쓸 수 없습니다."
 
     def _handle_copy_click_egg(self, egg: Egg, clicked: Egg) -> tuple[bool, str]:
-        """복사알 상태에 따른 알 클릭 처리."""
+        """봉인된 알은 능력을 쓸 수 없습니다."""
         state = self.copy_state
 
         if state == "stored_ability":
-            # 저장 능력이 있고 알 클릭 → 저장 능력 발동 시도
+            #      →
             stored = egg.copied_ability
             aname  = EGG_INFO.get(stored, {}).get("name", "?") if stored else "?"
-            # 알 대상 능력이면 즉시 발동
+            #
             if stored in ("seal", "psycho", "ice", "invisible", "clone", "magnet"):
                 return self._fire_stored_ability_on_egg(egg, clicked)
-            # 위치 대상 능력(barrier, bomb)이면 알 클릭은 새로 복사
+            #   (barrier, bomb)
             ok, msg = (ability_copy_ability(egg, clicked)
                        if clicked.owner != self.turn
                        else ability_copy_power(egg, clicked))
@@ -356,14 +356,14 @@ class GameState:
             return ok, msg
 
         if state == "stored_power":
-            # 저장 위력 있음 → 알 클릭은 새로 위력 복사
+            #    →
             ok, msg = ability_copy_power(egg, clicked)
             if ok:
                 self.copy_state = "stored_power"
                 self._end_ability_turn()
             return ok, msg
 
-        # state == "choose": 새로 복사
+        # state == "choose":
         if clicked.owner != self.turn:
             ok, msg = ability_copy_ability(egg, clicked)
         else:
@@ -374,14 +374,14 @@ class GameState:
             self._end_ability_turn()
         return ok, msg
 
-    # ── 능력 클릭 (위치 대상) ──────────────────────────────────────
+    # --   ( ) --------------------------------------
     def handle_ability_click_pos(self, x: float, y: float) -> tuple[bool, str]:
         egg = self.ability_egg
         if egg is None:
             return False, ""
         t = egg.type
 
-        # 복사알 - 저장된 능력 발동 (보드 빈 곳 클릭)
+        #  -    (   )
         if t == "copy" and self.copy_state == "stored_ability":
             return self._fire_stored_ability(egg, x, y)
 
@@ -395,15 +395,15 @@ class GameState:
             if ok: self._end_ability_turn()
             return ok, msg
 
-        return False, "위치 선택이 필요 없는 능력입니다."
+        return False, "분신은 발사만 할 수 있습니다."
 
     def _fire_stored_ability(self, egg: Egg, x: float, y: float) -> tuple[bool, str]:
-        """복사알이 저장한 능력을 사용. 능력 종류에 따라 다음 단계 안내."""
+        """복사알이 저장한 능력을 위치 대상으로 사용."""
         stored = egg.copied_ability
         if not stored:
-            return False, "저장된 능력이 없습니다."
+            return False, "자신의 알만 선택하세요."
 
-        # 위치 클릭이 필요한 능력: barrier, bomb
+        #    : barrier, bomb
         if stored == "barrier":
             ok, msg = ability_barrier(egg, x, y, self.eggs, self.barriers)
             if ok:
@@ -422,22 +422,22 @@ class GameState:
                 self._end_ability_turn()
             return ok, msg
 
-        # 알 클릭이 필요한 능력: 안내 메시지
+        #    :
         aname = EGG_INFO.get(stored, {}).get("name", "?")
         return False, f"저장된 [{aname}] 능력은 알을 클릭하면 발동됩니다."
 
     def _fire_stored_ability_on_egg(self, egg: Egg, target: Egg) -> tuple[bool, str]:
-        """복사알이 저장한 능력을 알 대상으로 사용."""
+        """봉인된 알은 능력을 쓸 수 없습니다."""
         stored = egg.copied_ability
         if not stored:
-            return False, "저장된 능력이 없습니다."
+            return False, "자신의 알만 선택하세요."
 
         ok, msg = False, ""
         if stored == "seal":
             ok, msg = ability_seal(egg, target)
         elif stored == "psycho":
             if target.owner == self.turn:
-                return False, "염력은 적 알에만 사용할 수 있습니다."
+                return False, "봉인된 알은 능력을 쓸 수 없습니다."
             ok, msg = ability_psycho(egg, target, self.eggs)
         elif stored == "ice":
             ok, msg = ability_ice(egg, target)
@@ -472,16 +472,16 @@ class GameState:
             self._end_ability_turn()
         return ok, msg
 
-    # ── 확인 버튼 ─────────────────────────────────────────────────
+    # --   -------------------------------------------------
     def handle_ability_confirm(self) -> tuple[bool, str]:
         egg = self.ability_egg
         if egg is None:
             return False, ""
-        # confirm은 clone/invisible에 쓰였으나 이제 즉시 처리로 변경됨
-        # 혹시 남은 케이스 대비
+        # confirm clone/invisible
+        #
         return False, "확인이 필요 없는 능력입니다."
 
-    # ── 능력 종료 ─────────────────────────────────────────────────
+    # --   -------------------------------------------------
     def _end_ability_turn(self):
         self.simulating      = False
         self.phase           = STATE_PLAY

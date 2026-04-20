@@ -2,22 +2,22 @@ from __future__ import annotations
 import math
 from core.constants import *
 
-# 기본 알 개수(EGGS_PER_PLAYER=5) 기준 능력 사용 횟수
-# 알 개수가 ±1 될 때마다 ±1 조정, 최소 1 최대 5
-# 능력 없는 알(normal) 및 자폭형(psycho)은 횟수 조정 없음
+#   (EGGS_PER_PLAYER=5)
+#   ±1   ±1 ,  1  5
+#   (normal)  (psycho)
 BASE_ABILITY_USES = {
-    "normal":    0,   # 능력 없음
+    "normal":    0,   #
     "barrier":   3,
     "seal":      1,
     "copy":      3,
     "clone":     2,
     "bomb":      3,
     "invisible": 2,
-    "psycho":    1,   # 자폭형 — 조정 없음
+    "psycho":    1,   #  —
     "ice":       2,
     "magnet":    1,
 }
-# 횟수 조정 제외 타입 (능력이 없거나 자폭형)
+#     (  )
 NO_SCALE_TYPES = {"normal", "psycho"}
 
 
@@ -28,7 +28,7 @@ def calc_uses(egg_type: str, egg_count: int) -> int:
         return 0
     if egg_type in NO_SCALE_TYPES:
         return base
-    delta = egg_count - EGGS_PER_PLAYER   # 기본값 대비 차이
+    delta = egg_count - EGGS_PER_PLAYER   #
     uses  = base + delta
     return max(1, min(5, uses))
 
@@ -49,12 +49,12 @@ class Egg:
         self.r:     int   = EGG_RADIUS
         self.active: bool = True
 
-        # 능력 사용 횟수
+        #
         _cnt = egg_count if egg_count is not None else EGGS_PER_PLAYER
         self.max_uses:  int = calc_uses(egg_type, _cnt)
         self.uses_left: int = self.max_uses
 
-        # 상태 플래그
+        #
         self.sealed:     bool = False
         self.seal_turns: int  = 0
         self.icy:        bool = False
@@ -62,13 +62,13 @@ class Egg:
         self.is_clone:   bool = False
         self.magnet_pair: "Egg | None" = None
 
-        # 복사알 저장값
+        #
         self.copied_ability: str | None   = None
         self.copied_vx:      float | None = None
         self.copied_vy:      float | None = None
         self.copy_mode: str = "none"   # "none" | "ability" | "power"
 
-    # ── 능력 사용 가능 여부 ────────────────────────────────────────
+    # --     ----------------------------------------
     def can_use_ability(self) -> bool:
         if self.type == "normal":
             return False
@@ -77,13 +77,13 @@ class Egg:
         return self.uses_left > 0
 
     def consume_use(self) -> bool:
-        """능력 1회 소모. 성공하면 True."""
+        """ 1 .  True."""
         if self.uses_left <= 0:
             return False
         self.uses_left -= 1
         return True
 
-    # ── 물리 ──────────────────────────────────────────────────────
+    # --  ------------------------------------------------------
     @property
     def speed(self) -> float:
         return math.hypot(self.vx, self.vy)
@@ -138,7 +138,7 @@ class Barrier:
 
 
 class Mine:
-    BLAST_RADIUS = EGG_RADIUS * 6   # 확대: 132px
+    BLAST_RADIUS = EGG_RADIUS * 6   # : 132px
 
     def __init__(self, x: float, y: float, owner: int):
         self.x = x
