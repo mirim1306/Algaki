@@ -1,4 +1,4 @@
-"""설정 화면."""
+"""설정 화면 – 볼륨, FPS, 효과음 토글 등 기본 설정."""
 from __future__ import annotations
 import math, pygame
 from core.constants import *
@@ -18,7 +18,7 @@ class Settings:
     show_fps:     bool = True
     show_grid:    bool = False
     fullscreen:   bool = True
-    friction_lvl: int = 1     # 0=, 1=, 2=
+    friction_lvl: int = 1     # 0=낮음, 1=보통, 2=높음
 
 
 _SETTINGS = Settings()
@@ -38,7 +38,7 @@ class SettingsScreen:
     C_BTN_N = (30,  45, 100)
     C_BTN_H = (55,  80, 170)
 
-    FRICTION_LABELS = [" ()", "", " ()"]
+    FRICTION_LABELS = ["낮음 (미끄러움)", "보통", "높음 (거칠음)"]
 
     def __init__(self, screen: pygame.Surface):
         self.screen = screen
@@ -68,12 +68,12 @@ class SettingsScreen:
             ("friction_lvl", "마찰력",      "cycle"),
         ]
 
-        card_w   = int(self.w * 0.60)   #
-        pad      = 16                   #
-        lbl_w    = 180                  #
-        btn_w    = 36                   # - / +
-        val_w    = 56                   #
-        gap      = 8                    #
+        card_w   = int(self.w * 0.60)   # 카드 너비
+        pad      = 16                   # 카드 내부 좌우 여백
+        lbl_w    = 180                  # 라벨 영역 너비
+        btn_w    = 36                   # - / + 버튼 너비
+        val_w    = 56                   # 수치 텍스트 너비
+        gap      = 8                    # 각 요소 간격
         card_x0  = cx - card_w // 2
 
         self.rects: dict[str, dict] = {}
@@ -111,7 +111,7 @@ class SettingsScreen:
                 self.rects[key] = {"card": card, "toggle": toggle_r}
 
             elif typ == "cycle":
-                # [] [ ] [>]
+                # [◀] [중앙 텍스트] [▶]  모두 카드 안
                 left_r  = pygame.Rect(card_x0 + pad + lbl_w + gap,
                                       y + 17, btn_w, 32)
                 right_r = pygame.Rect(card_x0 + card_w - pad - btn_w,
@@ -166,7 +166,7 @@ class SettingsScreen:
 
         for key, label, typ in self.rows:
             info = self.rects[key]
-            #
+            # 카드 배경
             pygame.draw.rect(s, self.C_CARD, info["card"], border_radius=8)
             pygame.draw.rect(s, self.C_BORD, info["card"], 1, border_radius=8)
 
@@ -178,20 +178,20 @@ class SettingsScreen:
                 bx  = info["bar_x"]
                 bw  = info["bar_w"]
                 by  = info["bar_y"]
-                #
+                # 슬라이더 트랙
                 pygame.draw.rect(s, (30, 40, 80), (bx, by, bw, 10), border_radius=5)
                 fill_w = max(0, int(bw * val / 100))
                 pygame.draw.rect(s, (60, 140, 240), (bx, by, fill_w, 10), border_radius=5)
-                #
+                # 핸들 점
                 handle_x = bx + fill_w
                 pygame.draw.circle(s, (120, 180, 255), (handle_x, by + 5), 7)
-                # - +
+                # - + 버튼
                 for r, sym in [(info["minus"], "−"), (info["plus"], "+")]:
                     pygame.draw.rect(s, self.C_BTN_N, r, border_radius=6)
                     pygame.draw.rect(s, (80, 120, 200), r, 1, border_radius=6)
                     t = self.font_val.render(sym, True, (200, 220, 255))
                     s.blit(t, t.get_rect(center=r.center))
-                #  (  )
+                # 수치 (카드 안 오른쪽)
                 vt = self.font_val.render(f"{val}%", True, self.C_VAL)
                 s.blit(vt, (info["val_x"], info["val_y"]))
 
@@ -207,7 +207,7 @@ class SettingsScreen:
 
             elif typ == "cycle":
                 val = getattr(self.s, key)
-                for r, sym in [(info["left"], ""), (info["right"], ">")]:
+                for r, sym in [(info["left"], "◀"), (info["right"], "▶")]:
                     pygame.draw.rect(s, self.C_BTN_N, r, border_radius=6)
                     pygame.draw.rect(s, (80, 120, 200), r, 1, border_radius=6)
                     t = self.font_val.render(sym, True, (200, 220, 255))
@@ -217,9 +217,9 @@ class SettingsScreen:
                 mid_y = info["left"].centery
                 s.blit(vt, vt.get_rect(center=(mid_x, mid_y)))
 
-        #
+        # 뒤로 가기
         bc = self.C_BTN_H if self.hov_back else self.C_BTN_N
         pygame.draw.rect(s, bc, self.back_rect, border_radius=10)
         pygame.draw.rect(s, (100, 140, 230), self.back_rect, 2, border_radius=10)
-        bt = self.font_btn.render("<- ", True, (200, 215, 255))
+        bt = self.font_btn.render("← 뒤로", True, (200, 215, 255))
         s.blit(bt, bt.get_rect(center=self.back_rect.center))

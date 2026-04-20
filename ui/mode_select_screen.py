@@ -1,4 +1,4 @@
-"""모드 선택 화면."""
+"""모드 선택 화면 – 싱글플레이 / 멀티플레이."""
 from __future__ import annotations
 import math, pygame
 from core.constants import *
@@ -63,7 +63,7 @@ class ModeSelectScreen:
         self.hov_back = False
 
     def handle_event(self, event: pygame.event.Event) -> str | None:
-        """: 'single' | 'multi' | 'back' | None"""
+        """반환: 'single' | 'multi' | 'back' | None"""
         if event.type == pygame.MOUSEMOTION:
             mx, my = event.pos
             self.hovered = None
@@ -88,19 +88,19 @@ class ModeSelectScreen:
 
         cx = self.w // 2
 
-        #
-        title = self.font_title.render(" ", True, self.C_TITLE)
+        # 타이틀
+        title = self.font_title.render("모드 선택", True, self.C_TITLE)
         s.blit(title, title.get_rect(center=(cx, 55)))
         sub = self.font_sub.render("원하는 게임 모드를 선택하세요", True, self.C_SUB)
         s.blit(sub, sub.get_rect(center=(cx, 100)))
 
-        #
+        # 모드 카드
         for key, name, icon_label, desc, cn, ch, ct in self.MODE_CARDS:
             rect = self.card_rects[key]
             hov = (self.hovered == key)
             bg = ch if hov else cn
 
-            #
+            # 글로우
             if hov:
                 for r_off in range(18, 0, -4):
                     gs = pygame.Surface((rect.w + r_off * 2, rect.h + r_off * 2), pygame.SRCALPHA)
@@ -109,35 +109,35 @@ class ModeSelectScreen:
                                      border_radius=18)
                     s.blit(gs, (rect.x - r_off, rect.y - r_off))
 
-            #
+            # 카드 본체
             pygame.draw.rect(s, bg, rect, border_radius=16)
             pygame.draw.rect(s, ct, rect, 2, border_radius=16)
 
-            #
+            # 아이콘 레이블
             icon_t = self.font_icon.render(icon_label, True, ct)
             s.blit(icon_t, icon_t.get_rect(center=(rect.centerx, rect.y + 55)))
 
-            #
+            # 카드 이름
             nm = self.font_card.render(name, True, ct)
             s.blit(nm, nm.get_rect(center=(rect.centerx, rect.y + 100)))
 
-            #
+            # 구분선
             pygame.draw.line(s, (*ct, 100), (rect.x + 24, rect.y + 120),
                              (rect.right - 24, rect.y + 120), 1)
 
-            #
+            # 설명
             for i, line in enumerate(desc.split("\n")):
                 bt = self.font_body.render(line, True, (180, 195, 225))
                 s.blit(bt, bt.get_rect(center=(rect.centerx, rect.y + 148 + i * 24)))
 
-            #
+            # 선택 안내
             if hov:
-                sel = self.font_btn.render("> ", True, ct)
+                sel = self.font_btn.render("▶ 선택", True, ct)
                 s.blit(sel, sel.get_rect(center=(rect.centerx, rect.bottom - 36)))
 
-        #
+        # 뒤로 가기
         bc = self.C_BACK_H if self.hov_back else self.C_BACK_N
         pygame.draw.rect(s, bc, self.back_rect, border_radius=10)
         pygame.draw.rect(s, (100, 140, 230), self.back_rect, 2, border_radius=10)
-        bt = self.font_btn.render("<- ", True, (200, 215, 255))
+        bt = self.font_btn.render("← 뒤로", True, (200, 215, 255))
         s.blit(bt, bt.get_rect(center=self.back_rect.center))

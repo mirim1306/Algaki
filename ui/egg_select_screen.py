@@ -1,4 +1,4 @@
-"""알 선택 화면."""
+"""알 선택 화면 — 맵 선택 / 포진 선택 / 알 개수 / 알 종류(중복 허용) 선택."""
 from __future__ import annotations
 import math, random, pygame
 from core.constants import *
@@ -38,13 +38,13 @@ class EggSelectScreen:
         self.tick  = 0
 
         self.selected_map  = 0
-        self.selected_form = 0          #
+        self.selected_form = 0          # 포진 인덱스
         self.egg_count     = EGGS_PER_PLAYER
 
-        #   (  → list,     OK)
+        # 선택 리스트 (중복 허용 → list, 같은 타입 여러 개 OK)
         self.p1_selected: list[str] = []
         self.p2_selected: list[str] = []
-        self.tab = 0   # 0=P1, 1=P2 ()
+        self.tab = 0   # 0=P1, 1=P2 (멀티)
 
         self.hov_egg:    str | None = None
         self.hov_back    = False
@@ -66,27 +66,27 @@ class EggSelectScreen:
         if mode == "single":
             self._ai_pick()
 
-    # -- AI   ---------------------------------------------
+    # ── AI 자동 선택 ─────────────────────────────────────────────
     def _ai_pick(self):
         pool = SELECTABLE_EGGS[:]
         random.shuffle(pool)
         self.p2_selected = (pool * 2)[:self.egg_count]
 
-    # --   ---------------------------------------------
+    # ── 레이아웃 계산 ─────────────────────────────────────────────
     def _build_layout(self):
         cx = self.w // 2
         from core.map_system import MAP_DEFS, FORMATION_DEFS
 
-        # --     --
-        # : 50px
-        #   + :  (74) + (60) + (42) + (160) + AI(30)
-        #  :
-        y = 58   #
+        # ── 전체 섹션 높이 예산 ──
+        # 제목: 50px
+        # 섹션 레이블 + 카드:  맵(74) + 포진(60) + 개수(42) + 알팔레트(160) + AI(30)
+        # 여백 사이사이: 넉넉하게 배분
+        y = 58   # 첫 섹션 시작
 
-        GAP_LABEL = 8    #  →
-        GAP_SEC   = 22   #  →
+        GAP_LABEL = 8    # 레이블 → 카드 간격
+        GAP_SEC   = 22   # 섹션 → 다음 섹션 간격
 
-        # --    --
+        # ── 맵 카드 행 ──
         n_maps  = len(MAP_DEFS)
         map_cw  = min(200, (self.w - 80) // n_maps - 10)
         map_ch  = 68
@@ -101,7 +101,7 @@ class EggSelectScreen:
         ]
         y = map_y + map_ch + GAP_SEC
 
-        # --    --
+        # ── 포진 카드 행 ──
         n_forms  = len(FORMATION_DEFS)
         form_cw  = min(180, (self.w - 80) // n_forms - 10)
         form_ch  = 52
@@ -116,7 +116,7 @@ class EggSelectScreen:
         ]
         y = form_y + form_ch + GAP_SEC
 
-        # --    --
+        # ── 알 개수 행 ──
         self._cnt_label_y = y
         cnt_y = y + 22
         self.minus_rect = pygame.Rect(cx - 72, cnt_y, 34, 34)
@@ -124,7 +124,7 @@ class EggSelectScreen:
         self.count_rect = pygame.Rect(cx - 30, cnt_y, 68, 34)
         y = cnt_y + 34 + GAP_SEC
 
-        # --  /    --
+        # ── 탭 / 알 선택 안내 ──
         self._tab_label_y = y
         tab_y = y + 22
         self.tab_rects = [
@@ -133,7 +133,7 @@ class EggSelectScreen:
         ]
         y = tab_y + 28 + GAP_LABEL
 
-        # --   --
+        # ── 알 팔레트 ──
         egg_cols = 5
         egg_cw   = min(140, (self.w - 60) // egg_cols - 8)
         egg_ch   = 52
@@ -151,12 +151,12 @@ class EggSelectScreen:
         last_row = (len(SELECTABLE_EGGS) - 1) // egg_cols
         self.ai_label_y = y + (last_row + 1) * (egg_ch + eg) + 6
 
-        # --  /   --
+        # ── 뒤로 / 시작 버튼 ──
         bw, bh = 150, 44
         self.back_rect  = pygame.Rect(36, self.h - bh - 14, bw, bh)
         self.start_rect = pygame.Rect(self.w - 36 - bw, self.h - bh - 14, bw, bh)
 
-    # --   -----------------------------------------------
+    # ── 이벤트 처리 ───────────────────────────────────────────────
     def handle_event(self, event: pygame.event.Event):
         if event.type == pygame.MOUSEMOTION:
             p = event.pos
@@ -179,17 +179,17 @@ class EggSelectScreen:
             if self.back_rect.collidepoint(p):  return "back"
             if self.start_rect.collidepoint(p): return self._build_config()
 
-            #
+            # 맵 선택
             for i, r in enumerate(self.map_rects):
                 if r.collidepoint(p):
                     self.selected_map = i
 
-            #
+            # 포진 선택
             for i, r in enumerate(self.form_rects):
                 if r.collidepoint(p):
                     self.selected_form = i
 
-            #
+            # 알 개수
             if self.minus_rect.collidepoint(p):
                 self.egg_count = max(MIN_EGGS, self.egg_count - 1)
                 self._on_count_change()
@@ -197,21 +197,21 @@ class EggSelectScreen:
                 self.egg_count = min(MAX_EGGS, self.egg_count + 1)
                 self._on_count_change()
 
-            #  ()
+            # 탭 (멀티)
             if self.mode == "multi":
                 for i, r in enumerate(self.tab_rects):
                     if r.collidepoint(p):
                         self.tab = i
 
-            #   —  :  1 ,  1
+            # 알 클릭 — 중복 허용: 클릭마다 1개 추가, 우클릭으로 1개 제거
 
         if event.type == pygame.MOUSEBUTTONDOWN:
             p = event.pos
             for key, r in self.egg_rects.items():
                 if r.collidepoint(p):
-                    if event.button == 1:   #  =
+                    if event.button == 1:   # 좌클릭 = 추가
                         self._add_egg(key)
-                    elif event.button == 3: #  =
+                    elif event.button == 3: # 우클릭 = 제거
                         self._remove_egg(key)
                     break
 
@@ -268,14 +268,14 @@ class EggSelectScreen:
             "p2_eggs":   p2,
         }
 
-    # --  ---------------------------------------------------
+    # ── 그리기 ───────────────────────────────────────────────────
     def draw(self):
         self.tick += 1
         s  = self.screen
         cx = self.w // 2
         s.fill(self.C_BG)
 
-        mode_label = "" if self.mode == "single" else ""
+        mode_label = "싱글플레이" if self.mode == "single" else "멀티플레이"
         t = self.font_title.render(f"게임 설정  ({mode_label})", True, self.C_TITLE)
         s.blit(t, t.get_rect(center=(cx, 32)))
 
@@ -289,7 +289,7 @@ class EggSelectScreen:
 
     def _draw_map_row(self, s, cx):
         from core.map_system import MAP_DEFS
-        sec = self.font_sec.render("맵 선택", True, (160, 200, 255))
+        sec = self.font_sec.render("◆ 맵 선택", True, (160, 200, 255))
         s.blit(sec, (self.map_rects[0].x, self._map_label_y))
         for i, (r, md) in enumerate(zip(self.map_rects, MAP_DEFS)):
             sel = (i == self.selected_map)
@@ -303,13 +303,13 @@ class EggSelectScreen:
             s.blit(nm, nm.get_rect(center=(r.centerx, r.y+20)))
             s.blit(ds, ds.get_rect(center=(r.centerx, r.y+44)))
             if sel:
-                s.blit(self.font_sm.render("V", True, self.C_SEL), (r.x+4, r.y+3))
+                s.blit(self.font_sm.render("✔", True, self.C_SEL), (r.x+4, r.y+3))
 
     def _draw_form_row(self, s, cx):
         from core.map_system import FORMATION_DEFS
-        sec = self.font_sec.render("맵 선택", True, (160, 200, 255))
+        sec = self.font_sec.render("◆ 포진 선택", True, (160, 200, 255))
         s.blit(sec, (self.form_rects[0].x, self._form_label_y))
-        patterns = ["-----", "↑↓↑↓↑", "↓↑↓↑↓", "↑↓-↓↑"]
+        patterns = ["─────", "↑↓↑↓↑", "↓↑↓↑↓", "↑↓─↓↑"]
         for i, (r, fd) in enumerate(zip(self.form_rects, FORMATION_DEFS)):
             sel = (i == self.selected_form)
             hov = (self.hov_form == i)
@@ -322,13 +322,13 @@ class EggSelectScreen:
             s.blit(nm, nm.get_rect(center=(r.centerx, r.y+16)))
             s.blit(pat, pat.get_rect(center=(r.centerx, r.y+34)))
             if sel:
-                s.blit(self.font_sm.render("V", True, self.C_SEL), (r.x+3, r.y+2))
+                s.blit(self.font_sm.render("✔", True, self.C_SEL), (r.x+3, r.y+2))
 
     def _draw_count_row(self, s, cx):
-        sec = self.font_sec.render("맵 선택", True, (160, 200, 255))
+        sec = self.font_sec.render("◆ 알 개수", True, (160, 200, 255))
         s.blit(sec, (self.minus_rect.x - 4, self._cnt_label_y))
-        for r, sym, hov in [(self.minus_rect,"",self.hov_minus),
-                             (self.plus_rect, "",self.hov_plus)]:
+        for r, sym, hov in [(self.minus_rect,"－",self.hov_minus),
+                             (self.plus_rect, "＋",self.hov_plus)]:
             pygame.draw.rect(s, (50,70,140) if hov else (30,45,100), r, border_radius=5)
             pygame.draw.rect(s, (80,120,200), r, 1, border_radius=5)
             t = self.font_num.render(sym, True, (200,220,255))
@@ -341,7 +341,7 @@ class EggSelectScreen:
     def _draw_egg_palette(self, s, cx):
         if self.mode == "multi":
             for i, (r, (lbl, col)) in enumerate(zip(
-                    self.tab_rects, [("P1 ()", C_P1), ("P2 ()", C_P2)])):
+                    self.tab_rects, [("P1 (파랑)", C_P1), ("P2 (빨강)", C_P2)])):
                 act = (i == self.tab)
                 pygame.draw.rect(s, col if act else (22,32,62), r, border_radius=5)
                 pygame.draw.rect(s, col, r, 2, border_radius=5)
@@ -350,19 +350,19 @@ class EggSelectScreen:
             cur_lst = self.p1_selected if self.tab == 0 else self.p2_selected
             hl_col  = C_P1 if self.tab == 0 else C_P2
             cnt_t = self.font_body.render(
-                f": {len(cur_lst)}/{self.egg_count}  (= =)",
+                f"선택: {len(cur_lst)}/{self.egg_count}  (좌클릭=추가 우클릭=제거)",
                 True, hl_col)
             s.blit(cnt_t, (self.tab_rects[1].right + 8, self.tab_rects[0].centery - 7))
         else:
             cur_lst = self.p1_selected
             hl_col  = C_P1
             sec = self.font_sec.render(
-                f"P1 선택: {len(cur_lst)}/{self.egg_count}개"
-                f"P2 선택",
+                f"◆ 내 알 선택 (P1)  {len(cur_lst)}/{self.egg_count}  "
+                f"좌클릭=추가  우클릭=제거",
                 True, (160,200,255))
             s.blit(sec, (self.tab_rects[0].x, self._tab_label_y))
 
-        #
+        # 팔레트 카드
         for key, r in self.egg_rects.items():
             ec      = EGG_COLORS.get(key, (180,180,180))
             count_in_cur = self._cur_list().count(key)
@@ -374,11 +374,11 @@ class EggSelectScreen:
             bc = hl_col if count_in_cur else ((80,110,180) if hov else self.C_BORD)
             pygame.draw.rect(s, bc, r, 2 if count_in_cur else 1, border_radius=6)
 
-            #
+            # 알 원
             pygame.draw.circle(s, ec, (r.x+16, r.centery), 12)
             pygame.draw.circle(s, _lt(ec), (r.x+12, r.centery-4), 4)
 
-            #  +
+            # 이름 + 능력 횟수
             nm = self.font_sm.render(EGG_INFO[key]["name"], True,
                                      (230,245,255) if count_in_cur else (145,165,195))
             s.blit(nm, (r.x+32, r.y+5))
@@ -392,7 +392,7 @@ class EggSelectScreen:
                 ds = self.font_sm.render(EGG_INFO[key]["desc"][:6], True, (80,105,145))
                 s.blit(ds, (r.x+32, r.y+22))
 
-            #
+            # 선택 수 뱃지
             if count_in_cur > 0:
                 badge = self.font_sm.render(f"×{count_in_cur}", True, hl_col)
                 s.blit(badge, (r.right - badge.get_width() - 3, r.y+3))
@@ -400,7 +400,7 @@ class EggSelectScreen:
     def _draw_ai_preview(self, s):
         y   = self.ai_label_y
         px0 = min(r.x for r in self.egg_rects.values())
-        lbl = self.font_sec.render("AI (P2) :", True, (220, 100, 100))
+        lbl = self.font_sec.render("AI (P2) 선택:", True, (220, 100, 100))
         s.blit(lbl, (px0, y))
         px = px0 + 92
         for et in self.p2_selected:
@@ -416,11 +416,11 @@ class EggSelectScreen:
         bc = self.C_BACK_H if self.hov_back else self.C_BACK_N
         pygame.draw.rect(s, bc, self.back_rect, border_radius=8)
         pygame.draw.rect(s, (100,140,230), self.back_rect, 2, border_radius=8)
-        t = self.font_btn.render("<- ", True, (200,215,255))
+        t = self.font_btn.render("← 뒤로", True, (200,215,255))
         s.blit(t, t.get_rect(center=self.back_rect.center))
 
         gc = self.C_GO_H if self.hov_start else self.C_GO_N
         pygame.draw.rect(s, gc, self.start_rect, border_radius=8)
         pygame.draw.rect(s, (100,220,130), self.start_rect, 2, border_radius=8)
-        t = self.font_btn.render("게임 시작 >", True, (180,255,200))
+        t = self.font_btn.render("게임 시작 ▶", True, (180,255,200))
         s.blit(t, t.get_rect(center=self.start_rect.center))
