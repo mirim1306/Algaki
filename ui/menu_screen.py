@@ -125,8 +125,8 @@ class MenuScreen:
 
         # ── 타이틀 ──
         wobble = math.sin(self.tick * 0.04) * 3
-        title_surf = self.font_title.render("알까기 능력물", True, self.C_TITLE)
-        shadow = self.font_title.render("알까기 능력물", True, (20, 30, 80))
+        title_surf = self.font_title.render("슈퍼 알까기", True, self.C_TITLE)
+        shadow = self.font_title.render("슈퍼 알까기", True, (20, 30, 80))
         tx = title_surf.get_rect(center=(cx, int(self.h * 0.25))).x
         ty = int(self.h * 0.25) - title_surf.get_height() // 2 + int(wobble)
         s.blit(shadow, (tx + 3, ty + 4))
